@@ -54,7 +54,7 @@ if 'workers_list' not in st.session_state:
             "dor": "2045-08-12",
             "role": "Worker",
             "basic_salary": 45000.0,
-            "balances": {"annual_m": 8.0, "annual_nm": 9.0, "casual": 8.5, "compensatory": 4.0},
+            "balances": {"casual_m": 8.0, "sick_nm": 9.0, "annual": 8.5, "compensatory": 4.0},
             "attendance": {5: "Annual Leave (M)"} 
         },
         {
@@ -68,7 +68,7 @@ if 'workers_list' not in st.session_state:
             "dor": "2050-01-10",
             "role": "Worker",
             "basic_salary": 38000.0,
-            "balances": {"annual_m": 10.0, "annual_nm": 6.0, "casual": 12.0, "compensatory": 2.0},
+            "balances": {"casual_m": 10.0, "sick_nm": 6.0, "annual": 12.0, "compensatory": 2.0},
             "attendance": {15: "Without Pay"}
         }
     ]
