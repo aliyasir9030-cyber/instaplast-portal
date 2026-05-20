@@ -6,7 +6,7 @@ import pandas as pd
 # Page setup and clean corporate theme alignment
 st.set_page_config(page_title="Gaironova - INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
-# Custom CSS matching the clean, flat UI of your company screenshots
+# Custom CSS matching the company screenshots
 st.markdown("""
     <style>
     .main-header {
@@ -40,7 +40,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 1. Database Initialization (Updated with Gaironova leave structures and required service dates)
+# Database Initialization
 if 'workers_list' not in st.session_state:
     st.session_state.workers_list = [
         {
@@ -84,7 +84,7 @@ DEPARTMENTS = [
     "HR / Admin", "Quality Control", "Store / Logistics", "Finishing & Packing"
 ]
 
-# 2. Sidebar Portal Gate
+# Sidebar Portal Gate
 st.sidebar.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🔒 INSTAPLAST<br>Gate Panel</h2>", unsafe_allow_html=True)
 st.sidebar.write("---")
 user_role = st.sidebar.selectbox("Select Access Role", ["Worker", "Admin"])
@@ -99,7 +99,7 @@ if user_role == "Admin":
     elif admin_password != "":
         st.sidebar.error("❌ Access Denied! Invalid Key Credentials.")
 
-# --- System Brand Banner ---
+# System Brand Banner
 st.markdown("""
     <div class="main-header">
         <h1 style="color:white; margin:0; font-family: 'Arial', sans-serif; font-weight:700; letter-spacing: 1px;">🏭 INSTAPLAST PVT LTD</h1>
@@ -107,7 +107,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# --- Live Notification Logs ---
+# Live Notification Logs
 st.markdown("<h4 style='color: #0284C7; font-weight:600;'>🔔 System Broadcast Dashboard</h4>", unsafe_allow_html=True)
 if st.session_state.notifications:
     for note in reversed(st.session_state.notifications[-5:]):
@@ -116,8 +116,7 @@ else:
     st.info("Log Stream Clear. No active leave operations recorded.")
 st.write("---")
 
-
-# --- Worker Session Mode ---
+# Worker Session Mode
 if user_role == "Worker":
     worker_names = [w['name'] for w in st.session_state.workers_list]
     
@@ -172,7 +171,7 @@ if user_role == "Worker":
                 st.dataframe(card_data, use_container_width=True, height=250)
             
             with col2:
-                st.markdown("<h4 style='color: #0D9488; font-weight:600;'>📊 Leave Account Balances (Gaironova Matrix)</h4>", unsafe_allow_html=True)
+                st.markdown("<h4 style='color: #0D9488; font-weight:600;'>📊 Leave Account Balances</h4>", unsafe_allow_html=True)
                 st.write("")
                 b = worker_data["balances"]
                 
@@ -218,7 +217,8 @@ if user_role == "Worker":
                         if selected_pay_type == "Unpaid Leave Channel (Without Pay)":
                             apply_attendance_dates()
                             st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted Unpaid Leave from day {start_date.day} to {end_date.day} ({days_requested} Days).")
-                            st.success(f"Success: Unpaid Leave window ({days_requested} Days) registered in live track.")
+                            st.success(f"Success: Unpaid Leave window ({days_requested} Days) registered.")
+                            st.timer(1)
                             st.rerun()
                         else:
                             map_leave = {
@@ -237,7 +237,7 @@ if user_role == "Worker":
                                 st.balloons()
                                 st.rerun()
                             else:
-                                st.error(f"Quota Insufficient: Your requested allowance exceeds available {leave_type} credits. Please process under Unpaid Channel.")
+                                st.error(f"Quota Insufficient: Your requested allowance exceeds available {leave_type} credits.")
                     else:
                         st.error("Timeline Validation Error: Terminating date cannot precede starting operational date.")
         elif input_cnic != "":
@@ -245,7 +245,7 @@ if user_role == "Worker":
         else:
             st.info("🔒 Secure Directory: Provide identity verification token to pull company records.")
 
-# --- Admin Controller Session Mode ---
+# Admin Controller Session Mode
 elif user_role == "Admin" and is_admin_authenticated:
     st.markdown("<h3 style='color: #1E3A8A; font-weight:600;'>🛠️ Enterprise Admin Control Center</h3>", unsafe_allow_html=True)
     
@@ -258,20 +258,19 @@ elif user_role == "Admin" and is_admin_authenticated:
             st.markdown("<h4 style='color: #0D9488;'>➕ Onboard New Workforce Profile</h4>", unsafe_allow_html=True)
             with st.form("add_form", clear_on_submit=True):
                 w_id = st.text_input("Assign Enterprise Worker ID")
-                w_cnic = st.text_input("Identity Card Token (CNIC - System Password)")
+                w_cnic = st.text_input("Identity Card Token (CNIC)")
                 w_name = st.text_input("Employee Full Legal Name")
-                w_fname = st.text_input("Father's / Guardian Name")
+                w_fname = st.text_input("Father's Name")
                 w_dept = st.selectbox("Assign Segment Division", DEPARTMENTS)
                 w_shift = st.text_input("Operational Shift Class")
                 
-                # Date of Joining & Retirement Additions
                 col_date1, col_date2 = st.columns(2)
                 w_doj = col_date1.text_input("Date of Joining (YYYY-MM-DD)", value=str(date.today()))
                 w_dor = col_date2.text_input("Date of Retirement (YYYY-MM-DD)", value="2050-01-01")
                 
                 w_salary = st.number_input("Base Compensation Salary Scale", min_value=0.0, step=1000.0, value=25000.0)
                 
-                st.markdown("<p style='color:#1E3A8A; font-weight:bold; margin-top:15px;'>📋 Set Gaironova Annual Leave Entitlements:</p>", unsafe_allow_html=True)
+                st.markdown("<p style='color:#1E3A8A; font-weight:bold; margin-top:15px;'>📋 Set Annual Leave Entitlements:</p>", unsafe_allow_html=True)
                 col_l1, col_l2 = st.columns(2)
                 allow_am = col_l1.number_input("Annual Leave (M) Limit", min_value=0.0, value=8.0)
                 allow_anm = col_l2.number_input("Annual Leave (NM) Limit", min_value=0.0, value=9.0)
@@ -286,10 +285,10 @@ elif user_role == "Admin" and is_admin_authenticated:
                             "balances": {"annual_m": allow_am, "annual_nm": allow_anm, "casual": allow_casual, "compensatory": allow_comp},
                             "attendance": {}
                         })
-                        st.success(f"Success: Record created for '{w_name}' with designated quotas.")
+                        st.success(f"Success: Record created for '{w_name}'")
                         st.rerun()
                     else:
-                        st.error("Validation Error: Profile ID, Full Legal Name, and Identity Token are non-nullable fields.")
+                        st.error("Validation Error: Profile ID, Full Name, and CNIC are mandatory fields.")
 
             st.write("---")
             st.markdown("<h4 style='color: #0284C7;'>✍️ Executive Direct Override Authorization</h4>", unsafe_allow_html=True)
@@ -348,10 +347,12 @@ elif user_role == "Admin" and is_admin_authenticated:
                     u_dept = st.selectbox("Modify Branch Segment Allocation", DEPARTMENTS, index=DEPARTMENTS.index(to_edit["dept"]) if to_edit["dept"] in DEPARTMENTS else 0)
                     u_shift = st.text_input("Modify Assignment Shift Schedule", value=to_edit["shift"])
                     
-                    # Dates Modification Input
                     u_doj = st.text_input("Modify Date of Joining (DOJ)", value=to_edit.get("doj", "2020-01-01"))
                     u_dor = st.text_input("Modify Date of Retirement (DOR)", value=to_edit.get("dor", "2045-01-01"))
                     
                     u_salary = st.number_input("Modify Assigned Base Contract Compensation", min_value=0.0, step=1000.0, value=to_edit.get("basic_salary", 25000.0))
                     
-                    st.markdown("<p style='color:#E11D48; font-weight:bold; margin-top:15px;'>🔄 Direct Ledger Adjustments:</p>", unsafe
+                    st.markdown("<p style='color:#E11D48; font-weight:bold; margin-top:15px;'>Direct Ledger Adjustments:</p>", unsafe_allow_html=True)
+                    col_u1, col_u2 = st.columns(2)
+                    u_am = col_u1.number_input("Annual Leave (M) Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("annual_m", 0.0)))
+                    u_anm = col_u2.number_input("Annual Leave (NM) Balance Allocation", min_value=0.0, value=float(to_edit["b
