@@ -52,7 +52,7 @@ if 'workers_list' not in st.session_state:
             "role": "Worker (ورکر)",
             "basic_salary": 45000.0,
             "balances": {"casual": 10.0, "sick": 8.0, "annual": 14.0, "compensatory": 4.0},
-            "attendance": {5: "Sick Leave (بیماری کی چھٹی)"} 
+            "attendance": {5: "Sick Leave"} 
         },
         {
             "id": "IP-1023",
@@ -64,7 +64,7 @@ if 'workers_list' not in st.session_state:
             "role": "Worker (ورکر)",
             "basic_salary": 38000.0,
             "balances": {"casual": 12.0, "sick": 6.0, "annual": 10.0, "compensatory": 2.0},
-            "attendance": {15: "Without Pay (Unpaid Leave)"}
+            "attendance": {15: "Without Pay"}
         }
     ]
 
@@ -106,10 +106,10 @@ st.markdown("""
 # --- 📢 نوٹیفیکیشن ڈیش بورڈ ---
 st.markdown("<h3 style='color: #3B82F6;'>🔔 لیو نوٹیفیکیشن ڈیش بورڈ (Leave Notifications)</h3>", unsafe_allow_html=True)
 if st.session_state.notifications:
-    for note in reversed(st.session_state.notifications[-5:]): # صرف آخری 5 نوٹیفیکیشن دکھائے گا
+    for note in reversed(st.session_state.notifications[-5:]):
         st.markdown(f"<div class='notification-box'>{note}</div>", unsafe_allow_html=True)
 else:
-    st.info("فی الحال چھٹی کی کوئی نئی درخواست موجود نہیں ہے۔")
+    st.info("فیش الحال چھٹی کی کوئی نئی درخواست موجود نہیں ہے۔")
 st.write("---")
 
 
@@ -125,9 +125,9 @@ if user_role == "Worker (ورکر)":
         selected_worker_name = col_log1.selectbox("اپنا نام منتخب کریں (Select Your Name):", worker_names)
         input_cnic = col_log2.text_input("اپنا شناختی کارڈ نمبر درج کریں (Enter CNIC as Password):", type="password")
         
-        worker_data = next(w for w in st.session_state.workers_list if w['name'] == selected_worker_name)
+        worker_data = next((w for w in st.session_state.workers_list if w['name'] == selected_worker_name), None)
         
-        if input_cnic == worker_data["cnic"]:
+        if worker_data and input_cnic == worker_data["cnic"]:
             st.success(f"🔓 لاگ ان کامیاب! خوش آمدید {worker_data['name']}")
             st.write("---")
             
@@ -188,13 +188,13 @@ if user_role == "Worker (ورکر)":
                 leave_options = ["Paid Leave (تنخواہ کے ساتھ)", "Without Pay (بغیر تنخواہ/Unpaid)"]
                 selected_pay_type = st.radio("چھٹی کی نوعیت منتخب کریں:", leave_options, horizontal=True)
                 
-                leave_type = "Without Pay (Unpaid Leave)"
+                leave_type = "Without Pay"
                 if selected_pay_type == "Paid Leave (تنخواہ کے ساتھ)":
                     leave_type = st.selectbox("چھٹی کی قسم (Leave Type)", [
-                        "Casual Leave (ضروری کام کی چھٹی)", 
-                        "Sick Leave (بیماری کی چھٹی)", 
-                        "Annual Leave (سالانہ چھٹیاں)", 
-                        "Compensatory Leave (متبادل چھٹی)"
+                        "Casual Leave", 
+                        "Sick Leave", 
+                        "Annual Leave", 
+                        "Compensatory Leave"
                     ])
                 
                 col_d1, col_d2 = st.columns(2)
@@ -215,13 +215,14 @@ if user_role == "Worker (ورکر)":
                             apply_attendance_dates()
                             st.session_state.notifications.append(f"⚠️ ورکر {worker_data['name']} نے {start_date.day} سے {end_date.day} تاریخ تک کے لیے {days_requested} دن کی {leave_type} اپلائی کی ہے۔")
                             st.success(f"🎉 بغیر تنخواہ کی {days_requested} چھٹیاں ریکارڈ میں درج کر دی گئی ہیں۔")
+                            st.timer(1)
                             st.rerun()
                         else:
                             map_leave = {
-                                "Casual Leave (ضروری کام کی چھٹی)": "casual", 
-                                "Sick Leave (بیماری کی چھٹی)": "sick", 
-                                "Annual Leave (سالانہ چھٹیاں)": "annual", 
-                                "Compensatory Leave (متبادل چھٹی)": "compensatory"
+                                "Casual Leave": "casual", 
+                                "Sick Leave": "sick", 
+                                "Annual Leave": "annual", 
+                                "Compensatory Leave": "compensatory"
                             }
                             b_key = map_leave[leave_type]
                             
@@ -254,7 +255,7 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
             st.markdown("<h4 style='color: #0D9488;'>➕ نیا ورکر شامل کریں اور چھٹیاں الاؤ کریں</h4>", unsafe_allow_html=True)
             with st.form("add_form", clear_on_submit=True):
                 w_id = st.text_input("ورکر آئی ڈی")
-                w_cnic = st.text_input("شناختی کارڈ نمبر (یہی ورکر کا پاس ورڈ ہوگا)")
+                w_cnic = st.text_input("شناختی کارڈ نمبر")
                 w_name = st.text_input("ورکر کا پورا نام")
                 w_fname = st.text_input("ولدیت (Father's Name)")
                 w_dept = st.selectbox("شعبہ (Department)", DEPARTMENTS)
@@ -286,83 +287,78 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
             st.markdown("<h4 style='color: #3B82F6;'>✍️ ایڈمن پینل سے چھٹی منظور کریں (Direct Approval)</h4>", unsafe_allow_html=True)
             all_workers_names = [w['name'] for w in st.session_state.workers_list]
             
-            adm_select_worker = st.selectbox("کس ورکر کی چھٹی منظور کرنی ہے؟", all_workers_names, key="adm_sel_w")
-            adm_worker_data = next(w for w in st.session_state.workers_list if w['name'] == adm_select_worker)
-            
-            adm_leave_pay = st.radio("نوعیت:", ["Paid Leave (تنخواہ کے ساتھ)", "Without Pay (بغیر تنخواہ)"], key="adm_pay", horizontal=True)
-            
-            if adm_leave_pay == "Paid Leave (تنخواہ کے ساتھ)":
-                adm_leave_type = st.selectbox("چھٹی کی قسم:", ["Casual Leave", "Sick Leave", "Annual Leave", "Compensatory Leave"], key="adm_l_type")
-            else:
-                adm_leave_type = "Without Pay"
+            if all_workers_names:
+                adm_select_worker = st.selectbox("کس ورکر کی چھٹی منظور کرنی ہے؟", all_workers_names, key="adm_sel_w")
+                adm_worker_data = next((w for w in st.session_state.workers_list if w['name'] == adm_select_worker), None)
                 
-            col_ad1, col_ad2 = st.columns(2)
-            adm_start = col_ad1.date_input("شروع تاریخ", key="adm_s_date")
-            adm_end = col_ad2.date_input("آخری تاریخ", key="adm_e_date")
-            
-            if st.button("✅ چھٹی فوراً منظور اور لاگو کریں", use_container_width=True):
-                if adm_end >= adm_start:
-                    days_num = (adm_end - adm_start).days + 1
-                    t_month_days = calendar.monthrange(adm_start.year, adm_start.month)[1]
-                    
-                    if "attendance" not in adm_worker_data:
-                        adm_worker_data["attendance"] = {}
-                    
-                    for d in range(adm_start.day, min(adm_end.day + 1, t_month_days + 1)):
-                        adm_worker_data["attendance"][d] = f"⚠️ {adm_leave_type} (Approved by Admin)"
+                if adm_worker_data:
+                    adm_leave_pay = st.radio("نوعیت:", ["Paid Leave (تنخواہ کے ساتھ)", "Without Pay (بغیر تنخواہ)"], key="adm_pay", horizontal=True)
                     
                     if adm_leave_pay == "Paid Leave (تنخواہ کے ساتھ)":
-                        map_k = {"Casual Leave": "casual", "Sick Leave": "sick", "Annual Leave": "annual", "Compensatory Leave": "compensatory"}
-                        k = map_k[adm_leave_type]
-                        adm_worker_data["balances"][k] = max(0.0, adm_worker_data["balances"].get(k, 0.0) - days_num)
+                        adm_leave_type = st.selectbox("چھٹی کی قسم:", ["Casual Leave", "Sick Leave", "Annual Leave", "Compensatory Leave"], key="adm_l_type")
+                    else:
+                        adm_leave_type = "Without Pay"
+                        
+                    col_ad1, col_ad2 = st.columns(2)
+                    adm_start = col_ad1.date_input("شروع تاریخ", key="adm_s_date")
+                    adm_end = col_ad2.date_input("آخری تاریخ", key="adm_e_date")
                     
-                    st.session_state.notifications.append(f"💼 ایڈمن نے ورکر {adm_select_worker} کی {days_num} دن کی {adm_leave_type} خود منظور کر دی ہے۔")
-                    st.success(f"🎉 {adm_select_worker} کی چھٹی کامیابی سے سسٹم میں درج اور بیلنس اپڈیٹ کر دیا گیا ہے!")
-                    st.rerun()
-                else:
-                    st.error("آخری تاریخ درست منتخب کریں۔")
+                    if st.button("✅ چھٹی فوراً منظور اور لاگو کریں", use_container_width=True):
+                        if adm_end >= adm_start:
+                            days_num = (adm_end - adm_start).days + 1
+                            t_month_days = calendar.monthrange(adm_start.year, adm_start.month)[1]
+                            
+                            if "attendance" not in adm_worker_data:
+                                adm_worker_data["attendance"] = {}
+                            
+                            for d in range(adm_start.day, min(adm_end.day + 1, t_month_days + 1)):
+                                adm_worker_data["attendance"][d] = f"⚠️ {adm_leave_type}"
+                            
+                            if adm_leave_pay == "Paid Leave (تنخواہ کے ساتھ)":
+                                map_k = {"Casual Leave": "casual", "Sick Leave": "sick", "Annual Leave": "annual", "Compensatory Leave": "compensatory"}
+                                k = map_k[adm_leave_type]
+                                adm_worker_data["balances"][k] = max(0.0, adm_worker_data["balances"].get(k, 0.0) - days_num)
+                            
+                            st.session_state.notifications.append(f"💼 ایڈمن نے ورکر {adm_select_worker} کی {days_num} دن کی {adm_leave_type} خود منظور کر دی ہے۔")
+                            st.success(f"🎉 {adm_select_worker} کی چھٹی کامیابی سے سسٹم میں درج ہو گئی!")
+                            st.rerun()
+                        else:
+                            st.error("آخری تاریخ درست منتخب کریں۔")
 
         with col_admin2:
             st.markdown("<h4 style='color: #E11D48;'>✏️ ورکر ڈیٹا / چھٹیاں تبدیل کریں</h4>", unsafe_allow_html=True)
             all_workers = [w['name'] for w in st.session_state.workers_list]
-            edit_name = st.selectbox("ورکر منتخب کریں:", all_workers, key="edit_sel")
-            to_edit = next(w for w in st.session_state.workers_list if w['name'] == edit_name)
-            
-            u_name = st.text_input("نام تبدیل کریں", value=to_edit["name"])
-            u_fname = st.text_input("ولدیت تبدیل کریں", value=to_edit.get("f_name", ""))
-            u_cnic = st.text_input("شناختی کارڈ تبدیل کریں", value=to_edit["cnic"])
-            u_id = st.text_input("آئی ڈی تبدیل کریں", value=to_edit["id"])
-            u_dept = st.selectbox("شعبہ تبدیل کریں", DEPARTMENTS, index=DEPARTMENTS.index(to_edit["dept"]) if to_edit["dept"] in DEPARTMENTS else 0)
-            u_shift = st.text_input("شفٹ تبدیل کریں", value=to_edit["shift"])
-            u_salary = st.number_input("بنیادی تنخواہ تبدیل کریں", min_value=0.0, step=1000.0, value=to_edit.get("basic_salary", 25000.0))
-            
-            st.markdown("<p style='color:#E11D48; font-weight:bold; margin-top:15px;'>🔄 چھٹیوں کا بیلنس اپڈیٹ کریں:</p>", unsafe_allow_html=True)
-            col_u1, col_u2 = st.columns(2)
-            u_casual = col_u1.number_input("Casual Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("casual", 0.0)))
-            u_sick = col_u2.number_input("Sick Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("sick", 0.0)))
-            u_annual = col_u1.number_input("Annual Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("annual", 0.0)))
-            u_comp = col_u2.number_input("Compensatory Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("compensatory", 0.0)))
-            
-            if st.button("🔄 ڈیٹا اور چھٹیاں اپڈیٹ کریں", use_container_width=True):
-                to_edit["name"] = u_name
-                to_edit["f_name"] = u_fname
-                to_edit["cnic"] = u_cnic
-                to_edit["id"] = u_id
-                to_edit["dept"] = u_dept
-                to_edit["shift"] = u_shift
-                to_edit["basic_salary"] = u_salary
-                to_edit["balances"] = {"casual": u_casual, "sick": u_sick, "annual": u_annual, "compensatory": u_comp}
-                st.success("ورکر کا ڈیٹا اور لیو بیلنس کامیابی سے اپڈیٹ ہو گیا!")
-                st.rerun()
+            if all_workers:
+                edit_name = st.selectbox("ورکر منتخب کریں:", all_workers, key="edit_sel")
+                to_edit = next((w for w in st.session_state.workers_list if w['name'] == edit_name), None)
+                
+                if to_edit:
+                    u_name = st.text_input("نام تبدیل کریں", value=to_edit["name"])
+                    u_fname = st.text_input("ولدیت تبدیل کریں", value=to_edit.get("f_name", ""))
+                    u_cnic = st.text_input("شناختی کارڈ تبدیل کریں", value=to_edit["cnic"])
+                    u_id = st.text_input("آئی ڈی تبدیل کریں", value=to_edit["id"])
+                    u_dept = st.selectbox("شعبہ تبدیل کریں", DEPARTMENTS, index=DEPARTMENTS.index(to_edit["dept"]) if to_edit["dept"] in DEPARTMENTS else 0)
+                    u_shift = st.text_input("شفٹ تبدیل کریں", value=to_edit["shift"])
+                    u_salary = st.number_input("بنیادی تنخواہ تبدیل کریں", min_value=0.0, step=1000.0, value=to_edit.get("basic_salary", 25000.0))
+                    
+                    st.markdown("<p style='color:#E11D48; font-weight:bold; margin-top:15px;'>🔄 چھٹیوں کا بیلنس اپڈیٹ کریں:</p>", unsafe_allow_html=True)
+                    col_u1, col_u2 = st.columns(2)
+                    u_casual = col_u1.number_input("Casual Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("casual", 0.0)))
+                    u_sick = col_u2.number_input("Sick Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("sick", 0.0)))
+                    u_annual = col_u1.number_input("Annual Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("annual", 0.0)))
+                    u_comp = col_u2.number_input("Compensatory Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("compensatory", 0.0)))
+                    
+                    if st.button("🔄 ڈیٹا اور چھٹیاں اپڈیٹ کریں", use_container_width=True):
+                        to_edit["name"] = u_name
+                        to_edit["f_name"] = u_fname
+                        to_edit["cnic"] = u_cnic
+                        to_edit["id"] = u_id
+                        to_edit["dept"] = u_dept
+                        to_edit["shift"] = u_shift
+                        to_edit["basic_salary"] = u_salary
+                        to_edit["balances"] = {"casual": u_casual, "sick": u_sick, "annual": u_annual, "compensatory": u_comp}
+                        st.success("ورکر کا ڈیٹا کامیابی سے اپڈیٹ ہو گیا!")
+                        st.rerun()
                 
     with tab2:
         st.markdown("<h4 style='color: #1E3A8A;'>📋 تمام ورکرز کا لائیو لیو ریکارڈ اور اسٹیٹس</h4>", unsafe_allow_html=True)
-        
-        records_data = []
-        for w in st.session_state.workers_list:
-            taken_leaves = []
-            for day, status in w.get("attendance", {}).items():
-                if "Leave" in status or "Without Pay" in status:
-                    taken_leaves.append(f"{day} تاریخ ({status.split(' ')[0]})")
-            
-            leaves_summary = ", ".join(taken_leaves) if taken_leaves els
