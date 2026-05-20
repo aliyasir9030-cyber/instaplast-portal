@@ -40,7 +40,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Memory Database Initialization with Exact Balances
+# 3. Memory Database Initialization with Required Leaves
 if 'workers_list' not in st.session_state:
     st.session_state.workers_list = [
         {
@@ -69,7 +69,7 @@ if 'workers_list' not in st.session_state:
             "role": "Worker",
             "basic_salary": 42000.0,
             "balances": {"casual": 8.0, "sick": 6.0, "annual": 14.0, "compensation": 0.0},
-            "attendance": {20: "Casual Leave", "21": "Casual Leave"}
+            "attendance": {20: "Casual Leave", 21: "Casual Leave"}
         },
         {
             "id": "IP-1023",
@@ -363,4 +363,4 @@ elif user_role == "Admin" and is_admin_authenticated:
                         to_edit["id"] = u_id
                         to_edit["dept"] = u_dept
                         to_edit["shift"] = u_shift
-                        to_edit["
+                        to_edit["d
