@@ -40,7 +40,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Memory Database Initialization with Required Leaves
+# 3. Memory Database Initialization with Exact Balances
 if 'workers_list' not in st.session_state:
     st.session_state.workers_list = [
         {
@@ -56,6 +56,20 @@ if 'workers_list' not in st.session_state:
             "basic_salary": 45000.0,
             "balances": {"casual": 8.5, "sick": 5.0, "annual": 8.0, "compensation": 4.0},
             "attendance": {5: "Annual Leave"} 
+        },
+        {
+            "id": "IP-1024",
+            "cnic": "4210198765432",
+            "name": "Yasir Ali",
+            "f_name": "Ali Nawaz",
+            "dept": "Utilities (Electrical & Instrumentation)",
+            "shift": "G28SHIFT",
+            "doj": "2021-05-10",
+            "dor": "2048-11-20",
+            "role": "Worker",
+            "basic_salary": 42000.0,
+            "balances": {"casual": 8.0, "sick": 6.0, "annual": 14.0, "compensation": 0.0},
+            "attendance": {20: "Casual Leave", "21": "Casual Leave"}
         },
         {
             "id": "IP-1023",
@@ -75,8 +89,10 @@ if 'workers_list' not in st.session_state:
 
 if 'notifications' not in st.session_state:
     st.session_state.notifications = [
-        "📢 Muhammad Raza-ul-Mustafa applied for Annual Leave on the 5th of this month.",
-        "📢 Ali Ahmed applied for Sick Leave on the 15th of this month."
+        "💼 Executive Override: Admin enforced 2 days of Casual Leave onto profile: Yasir Ali.",
+        "📢 Employee Yasir Ali submitted Casual Leave from day 20 to 21 (2 Days).",
+        "📢 Ali Ahmed applied for Sick Leave on the 15th of this month.",
+        "📢 Muhammad Raza-ul-Mustafa applied for Annual Leave on the 5th of this month."
     ]
 
 DEPARTMENTS = [
@@ -216,7 +232,7 @@ if user_role == "Worker":
                         b_key = map_leave[leave_type]
                         
                         if worker_data["balances"].get(b_key, 0.0) >= days_requested:
-                            worker_data["balances"][b_key] -= days_requested
+                            worker_data["balances"][b_key] -= float(days_requested)
                             for d in range(start_date.day, min(end_date.day + 1, num_days + 1)):
                                 worker_data["attendance"][d] = f"⚠️ {leave_type}"
                             st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted {leave_type} from day {start_date.day} to {end_date.day} ({days_requested} Days).")
@@ -305,7 +321,7 @@ elif user_role == "Admin" and is_admin_authenticated:
                             
                             map_k = {"Casual Leave": "casual", "Sick Leave": "sick", "Annual Leave": "annual", "Compensation Leave": "compensation"}
                             k = map_k[adm_leave_type]
-                            adm_worker_data["balances"][k] = max(0.0, adm_worker_data["balances"].get(k, 0.0) - days_num)
+                            adm_worker_data["balances"][k] = max(0.0, float(adm_worker_data["balances"].get(k, 0.0)) - float(days_num))
                             
                             st.session_state.notifications.append(f"💼 Executive Override: Admin enforced {days_num} days of {adm_leave_type} onto profile: {adm_select_worker}.")
                             st.success(f"Success: Overrides written into profile matrix for {adm_select_worker}!")
@@ -333,7 +349,7 @@ elif user_role == "Admin" and is_admin_authenticated:
                     
                     u_salary = st.number_input("Modify Assigned Base Contract Compensation", min_value=0.0, step=1000.0, value=to_edit.get("basic_salary", 25000.0))
                     
-                    st.markdown("##### Direct Ledger Adjustments:")
+                    st.markdown("<p style='color:#1E3A8A; font-weight:bold; margin-top:15px;'>Direct Ledger Adjustments:</p>", unsafe_allow_html=True)
                     col_u1, col_u2 = st.columns(2)
                     u_casual = col_u1.number_input("Casual Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("casual", 0.0)))
                     u_sick = col_u2.number_input("Sick Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("sick", 0.0)))
@@ -347,19 +363,4 @@ elif user_role == "Admin" and is_admin_authenticated:
                         to_edit["id"] = u_id
                         to_edit["dept"] = u_dept
                         to_edit["shift"] = u_shift
-                        to_edit["doj"] = u_doj
-                        to_edit["dor"] = u_dor
-                        to_edit["basic_salary"] = u_salary
-                        to_edit["balances"] = {"casual": u_casual, "sick": u_sick, "annual": u_annual, "compensation": u_comp}
-                        st.success("Success: Operational variables committed to database stack.")
-                        st.rerun()
-                
-    with tab2:
-        st.markdown("<h4 style='color: #1E3A8A;'>📋 System Master Leave Ledger Records</h4>", unsafe_allow_html=True)
-        
-        records_data = []
-        for w in st.session_state.workers_list:
-            taken_leaves = []
-            for day, status in w.get("attendance", {}).items():
-                if "Leave" in status:
-                    taken_leaves.append(f"Day {day} ({status})")
+                        to_edit["
