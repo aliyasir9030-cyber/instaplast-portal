@@ -40,7 +40,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Secure State Memory Database Initialization
+# 3. Memory Database Initialization with Required Leaves
 if 'workers_list' not in st.session_state:
     st.session_state.workers_list = [
         {
@@ -54,8 +54,8 @@ if 'workers_list' not in st.session_state:
             "dor": "2045-08-12",
             "role": "Worker",
             "basic_salary": 45000.0,
-            "balances": {"casual_m": 8.0, "sick_nm": 9.0, "annual": 8.5, "compensatory": 4.0},
-            "attendance": {5: "Annual Leave (M)"} 
+            "balances": {"casual": 8.5, "sick": 5.0, "annual": 8.0, "compensation": 4.0},
+            "attendance": {5: "Annual Leave"} 
         },
         {
             "id": "IP-1023",
@@ -68,15 +68,15 @@ if 'workers_list' not in st.session_state:
             "dor": "2050-01-10",
             "role": "Worker",
             "basic_salary": 38000.0,
-            "balances": {"casual_m": 10.0, "sick_nm": 6.0, "annual": 12.0, "compensatory": 2.0},
-            "attendance": {15: "Without Pay"}
+            "balances": {"casual": 12.0, "sick": 6.0, "annual": 10.0, "compensation": 2.0},
+            "attendance": {15: "Sick Leave"}
         }
     ]
 
 if 'notifications' not in st.session_state:
     st.session_state.notifications = [
-        "📢 Muhammad Raza-ul-Mustafa applied for Annual Leave (M) on the 5th of this month.",
-        "📢 Ali Ahmed applied for Unpaid Leave (Without Pay) on the 15th of this month."
+        "📢 Muhammad Raza-ul-Mustafa applied for Annual Leave on the 5th of this month.",
+        "📢 Ali Ahmed applied for Sick Leave on the 15th of this month."
     ]
 
 DEPARTMENTS = [
@@ -177,28 +177,24 @@ if user_role == "Worker":
                 
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
-                    st.metric("Annual Leave (M)", f"{b.get('annual_m', 0.0)} Days")
-                with c2:
-                    st.metric("Annual Leave (NM)", f"{b.get('annual_nm', 0.0)} Days")
-                with c3:
                     st.metric("Casual Leave", f"{b.get('casual', 0.0)} Days")
+                with c2:
+                    st.metric("Sick Leave", f"{b.get('sick', 0.0)} Days")
+                with c3:
+                    st.metric("Annual Leave", f"{b.get('annual', 0.0)} Days")
                 with c4:
-                    st.metric("Compensatory Leave", f"{b.get('compensatory', 0.0)} Days")
+                    st.metric("Compensation Leave", f"{b.get('compensation', 0.0)} Days")
 
                 st.write("---")
                 
                 st.markdown("<h4 style='color: #1E3A8A; font-weight:600;'>📝 Time Off Application Form</h4>", unsafe_allow_html=True)
-                leave_options = ["Paid Leave Channel", "Unpaid Leave Channel (Without Pay)"]
-                selected_pay_type = st.radio("Select Processing Channel:", leave_options, horizontal=True)
                 
-                leave_type = "Without Pay"
-                if selected_pay_type == "Paid Leave Channel":
-                    leave_type = st.selectbox("Select Certified Time Off Type:", [
-                        "Annual Leave (M)", 
-                        "Annual Leave (NM)", 
-                        "Casual Leave", 
-                        "Compensatory Leave"
-                    ])
+                leave_type = st.selectbox("Select Leave Type:", [
+                    "Casual Leave", 
+                    "Sick Leave", 
+                    "Annual Leave", 
+                    "Compensation Leave"
+                ])
                 
                 col_d1, col_d2 = st.columns(2)
                 start_date = col_d1.date_input("Start Operation Date")
@@ -211,31 +207,24 @@ if user_role == "Worker":
                         if "attendance" not in worker_data:
                             worker_data["attendance"] = {}
                         
-                        if selected_pay_type == "Unpaid Leave Channel (Without Pay)":
+                        map_leave = {
+                            "Casual Leave": "casual", 
+                            "Sick Leave": "sick", 
+                            "Annual Leave": "annual", 
+                            "Compensation Leave": "compensation"
+                        }
+                        b_key = map_leave[leave_type]
+                        
+                        if worker_data["balances"].get(b_key, 0.0) >= days_requested:
+                            worker_data["balances"][b_key] -= days_requested
                             for d in range(start_date.day, min(end_date.day + 1, num_days + 1)):
-                                worker_data["attendance"][d] = "⚠️ Without Pay"
-                            st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted Unpaid Leave from day {start_date.day} to {end_date.day} ({days_requested} Days).")
-                            st.success(f"Success: Unpaid Leave window ({days_requested} Days) registered.")
+                                worker_data["attendance"][d] = f"⚠️ {leave_type}"
+                            st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted {leave_type} from day {start_date.day} to {end_date.day} ({days_requested} Days).")
+                            st.success(f"Success: Balance deduction adjusted. Total Days: {days_requested}")
+                            st.balloons()
                             st.rerun()
                         else:
-                            map_leave = {
-                                "Annual Leave (M)": "annual_m", 
-                                "Annual Leave (NM)": "annual_nm", 
-                                "Casual Leave": "casual", 
-                                "Compensatory Leave": "compensatory"
-                            }
-                            b_key = map_leave[leave_type]
-                            
-                            if worker_data["balances"].get(b_key, 0.0) >= days_requested:
-                                worker_data["balances"][b_key] -= days_requested
-                                for d in range(start_date.day, min(end_date.day + 1, num_days + 1)):
-                                    worker_data["attendance"][d] = f"⚠️ {leave_type}"
-                                st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted Paid {leave_type} from day {start_date.day} to {end_date.day} ({days_requested} Days).")
-                                st.success(f"Success: Balance deduction adjusted. Total Days: {days_requested}")
-                                st.balloons()
-                                st.rerun()
-                            else:
-                                st.error(f"Quota Insufficient: Your requested allowance exceeds available {leave_type} credits.")
+                            st.error(f"Quota Insufficient: Your requested allowance exceeds available {leave_type} credits.")
                     else:
                         st.error("Timeline Validation Error: Terminating date cannot precede starting operational date.")
         elif input_cnic != "":
@@ -270,17 +259,17 @@ elif user_role == "Admin" and is_admin_authenticated:
                 
                 st.markdown("<p style='color:#1E3A8A; font-weight:bold; margin-top:15px;'>📋 Set Annual Leave Entitlements:</p>", unsafe_allow_html=True)
                 col_l1, col_l2 = st.columns(2)
-                allow_am = col_l1.number_input("Annual Leave (M) Limit", min_value=0.0, value=8.0)
-                allow_anm = col_l2.number_input("Annual Leave (NM) Limit", min_value=0.0, value=9.0)
-                allow_casual = col_l1.number_input("Casual Leave Limit", min_value=0.0, value=8.5)
-                allow_comp = col_l2.number_input("Compensatory Leave Limit", min_value=0.0, value=4.0)
+                allow_casual = col_l1.number_input("Casual Leave Limit", min_value=0.0, value=12.0)
+                allow_sick = col_l2.number_input("Sick Leave Limit", min_value=0.0, value=6.0)
+                allow_annual = col_l1.number_input("Annual Leave Limit", min_value=0.0, value=10.0)
+                allow_comp = col_l2.number_input("Compensation Leave Limit", min_value=0.0, value=4.0)
                 
                 if st.form_submit_button("✅ Sync Profile to Database Registry"):
                     if w_id and w_name and w_cnic:
                         st.session_state.workers_list.append({
                             "id": w_id, "cnic": w_cnic, "name": w_name, "f_name": w_fname, "dept": w_dept, "shift": w_shift, "role": "Worker",
                             "doj": w_doj, "dor": w_dor, "basic_salary": w_salary,
-                            "balances": {"annual_m": allow_am, "annual_nm": allow_anm, "casual": allow_casual, "compensatory": allow_comp},
+                            "balances": {"casual": allow_casual, "sick": allow_sick, "annual": allow_annual, "compensation": allow_comp},
                             "attendance": {}
                         })
                         st.success(f"Success: Record created for '{w_name}'")
@@ -297,12 +286,7 @@ elif user_role == "Admin" and is_admin_authenticated:
                 adm_worker_data = next((w for w in st.session_state.workers_list if w['name'] == adm_select_worker), None)
                 
                 if adm_worker_data:
-                    adm_leave_pay = st.radio("Compensation Type:", ["Paid Approved Channels", "Without Pay Overrides"], key="adm_pay", horizontal=True)
-                    
-                    if adm_leave_pay == "Paid Approved Channels":
-                        adm_leave_type = st.selectbox("Category Select:", ["Annual Leave (M)", "Annual Leave (NM)", "Casual Leave", "Compensatory Leave"], key="adm_l_type")
-                    else:
-                        adm_leave_type = "Without Pay"
+                    adm_leave_type = st.selectbox("Category Select:", ["Casual Leave", "Sick Leave", "Annual Leave", "Compensation Leave"], key="adm_l_type")
                         
                     col_ad1, col_ad2 = st.columns(2)
                     adm_start = col_ad1.date_input("Activation Frame Start", key="adm_s_date")
@@ -319,10 +303,9 @@ elif user_role == "Admin" and is_admin_authenticated:
                             for d in range(adm_start.day, min(adm_end.day + 1, t_month_days + 1)):
                                 adm_worker_data["attendance"][d] = f"⚠️ {adm_leave_type}"
                             
-                            if adm_leave_pay == "Paid Approved Channels":
-                                map_k = {"Annual Leave (M)": "annual_m", "Annual Leave (NM)": "annual_nm", "Casual Leave": "casual", "Compensatory Leave": "compensatory"}
-                                k = map_k[adm_leave_type]
-                                adm_worker_data["balances"][k] = max(0.0, adm_worker_data["balances"].get(k, 0.0) - days_num)
+                            map_k = {"Casual Leave": "casual", "Sick Leave": "sick", "Annual Leave": "annual", "Compensation Leave": "compensation"}
+                            k = map_k[adm_leave_type]
+                            adm_worker_data["balances"][k] = max(0.0, adm_worker_data["balances"].get(k, 0.0) - days_num)
                             
                             st.session_state.notifications.append(f"💼 Executive Override: Admin enforced {days_num} days of {adm_leave_type} onto profile: {adm_select_worker}.")
                             st.success(f"Success: Overrides written into profile matrix for {adm_select_worker}!")
@@ -352,5 +335,31 @@ elif user_role == "Admin" and is_admin_authenticated:
                     
                     st.markdown("##### Direct Ledger Adjustments:")
                     col_u1, col_u2 = st.columns(2)
-                    u_am = col_u1.number_input("Annual Leave (M) Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("annual_m", 0.0)))
-                    u_anm = col_u2.number_input("Annual Leave (NM) Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("annual_nm", 0.0)))
+                    u_casual = col_u1.number_input("Casual Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("casual", 0.0)))
+                    u_sick = col_u2.number_input("Sick Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("sick", 0.0)))
+                    u_annual = col_u1.number_input("Annual Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("annual", 0.0)))
+                    u_comp = col_u2.number_input("Compensation Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("compensation", 0.0)))
+                    
+                    if st.button("🔄 Sync Operations to Enterprise Record", use_container_width=True):
+                        to_edit["name"] = u_name
+                        to_edit["f_name"] = u_fname
+                        to_edit["cnic"] = u_cnic
+                        to_edit["id"] = u_id
+                        to_edit["dept"] = u_dept
+                        to_edit["shift"] = u_shift
+                        to_edit["doj"] = u_doj
+                        to_edit["dor"] = u_dor
+                        to_edit["basic_salary"] = u_salary
+                        to_edit["balances"] = {"casual": u_casual, "sick": u_sick, "annual": u_annual, "compensation": u_comp}
+                        st.success("Success: Operational variables committed to database stack.")
+                        st.rerun()
+                
+    with tab2:
+        st.markdown("<h4 style='color: #1E3A8A;'>📋 System Master Leave Ledger Records</h4>", unsafe_allow_html=True)
+        
+        records_data = []
+        for w in st.session_state.workers_list:
+            taken_leaves = []
+            for day, status in w.get("attendance", {}).items():
+                if "Leave" in status:
+                    taken_leaves.append(f"Day {day} ({status})")
