@@ -4,9 +4,9 @@ import calendar
 import pandas as pd
 
 # 1. Page Config Setup
-st.set_page_config(page_title="Gaironova - INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
+st.set_page_config(page_title="Instaplast - INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
-# 2. Clean Corporate Theme Styling (Gaironova UI Alignment)
+# 2. Clean Corporate Theme Styling (Instaplast UI Alignment)
 st.markdown("""
     <style>
     .main-header {
