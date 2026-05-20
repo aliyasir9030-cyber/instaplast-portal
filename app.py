@@ -349,7 +349,7 @@ elif user_role == "Admin" and is_admin_authenticated:
                     
                     u_salary = st.number_input("Modify Assigned Base Contract Compensation", min_value=0.0, step=1000.0, value=to_edit.get("basic_salary", 25000.0))
                     
-                    st.markdown("<p style='color:#1E3A8A; font-weight:bold; margin-top:15px;'>Direct Ledger Adjustments:</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='color:#E11D48; font-weight:bold; margin-top:15px;'>Direct Ledger Adjustments:</p>", unsafe_allow_html=True)
                     col_u1, col_u2 = st.columns(2)
                     u_casual = col_u1.number_input("Casual Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("casual", 0.0)))
                     u_sick = col_u2.number_input("Sick Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("sick", 0.0)))
@@ -363,4 +363,65 @@ elif user_role == "Admin" and is_admin_authenticated:
                         to_edit["id"] = u_id
                         to_edit["dept"] = u_dept
                         to_edit["shift"] = u_shift
-                        to_edit["d
+                        to_edit["doj"] = u_doj
+                        to_edit["dor"] = u_dor
+                        to_edit["basic_salary"] = u_salary
+                        to_edit["balances"] = {"casual": u_casual, "sick": u_sick, "annual": u_annual, "compensation": u_comp}
+                        st.success("Success: Operational variables committed to database stack.")
+                        st.rerun()
+                
+    with tab2:
+        st.markdown("<h4 style='color: #1E3A8A;'>📋 System Master Leave Ledger Records</h4>", unsafe_allow_html=True)
+        
+        records_data = []
+        for w in st.session_state.workers_list:
+            taken_leaves = []
+            for day, status in w.get("attendance", {}).items():
+                if "Leave" in str(status):
+                    taken_leaves.append(f"Day {day} ({status})")
+            
+            if len(taken_leaves) > 0:
+                leaves_summary = ", ".join(taken_leaves)
+            else:
+                leaves_summary = "Clear (No Active Logs)"
+            
+            records_data.append({
+                "Worker ID": w["id"],
+                "Employee Name": w["name"],
+                "Father Name": w.get("f_name", "---"),
+                "Department Segment": w["dept"],
+                "Casual Leave": w["balances"].get("casual", 0.0),
+                "Sick Leave": w["balances"].get("sick", 0.0),
+                "Annual Leave": w["balances"].get("annual", 0.0),
+                "Compensation Leave": w["balances"].get("compensation", 0.0),
+                "Current Month Time Off Breakdown": leaves_summary
+            })
+        if records_data:
+            df_records = pd.DataFrame(records_data)
+            st.dataframe(df_records, use_container_width=True)
+        else:
+            st.info("System Alert: Master Ledger records stream empty.")
+
+    with tab3:
+        st.markdown("<h4 style='color: #1E3A8A;'>📊 Consolidated Payroll Operations Compensation Sheet</h4>", unsafe_allow_html=True)
+        
+        salary_sheet_data = []
+        for w in st.session_state.workers_list:
+            basic = w.get("basic_salary", 25000.0)
+            
+            salary_sheet_data.append({
+                "Asset Worker ID": w["id"],
+                "Legal Name": w["name"],
+                "Father Name": w.get("f_name", "---"),
+                "DOJ": w.get("doj", "---"),
+                "DOR": w.get("dor", "---"),
+                "Base Contract Allowance": f"Rs. {basic:,.2f}",
+                "Net Salary Payable": f"Rs. {basic:,.2f}"
+            })
+            
+        if salary_sheet_data:
+            df_salary = pd.DataFrame(salary_sheet_data)
+            st.dataframe(df_salary, use_container_width=True)
+
+elif user_role == "Admin" and not is_admin_authenticated:
+    st.info("🔒 Cryptographic Security: Authenticate management credentials within the gate layout to toggle access.")
