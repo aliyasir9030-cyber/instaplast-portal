@@ -3,10 +3,10 @@ from datetime import datetime, date
 import calendar
 import pandas as pd
 
-# Page setup and clean corporate theme alignment
+# 1. Page Config Setup
 st.set_page_config(page_title="Gaironova - INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
-# Custom CSS matching the company screenshots
+# 2. Clean Corporate Theme Styling (Gaironova UI Alignment)
 st.markdown("""
     <style>
     .main-header {
@@ -40,12 +40,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Database Initialization
+# 3. Secure State Memory Database Initialization
 if 'workers_list' not in st.session_state:
     st.session_state.workers_list = [
         {
             "id": "IP-1022",
-            "cnic": "42101-1234567-1",
+            "cnic": "4210112345671",
             "name": "Muhammad Raza-ul-Mustafa",
             "f_name": "Ghulam Mustafa",
             "dept": "Utilities (Electrical & Instrumentation)",
@@ -59,7 +59,7 @@ if 'workers_list' not in st.session_state:
         },
         {
             "id": "IP-1023",
-            "cnic": "42101-7654321-3",
+            "cnic": "4210176543213",
             "name": "Ali Ahmed",
             "f_name": "Ahmed Khan",
             "dept": "Production",
@@ -84,7 +84,7 @@ DEPARTMENTS = [
     "HR / Admin", "Quality Control", "Store / Logistics", "Finishing & Packing"
 ]
 
-# Sidebar Portal Gate
+# 4. Sidebar Gateway Access Controller
 st.sidebar.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🔒 INSTAPLAST<br>Gate Panel</h2>", unsafe_allow_html=True)
 st.sidebar.write("---")
 user_role = st.sidebar.selectbox("Select Access Role", ["Worker", "Admin"])
@@ -99,7 +99,7 @@ if user_role == "Admin":
     elif admin_password != "":
         st.sidebar.error("❌ Access Denied! Invalid Key Credentials.")
 
-# System Brand Banner
+# 5. Dashboard Branding Headers
 st.markdown("""
     <div class="main-header">
         <h1 style="color:white; margin:0; font-family: 'Arial', sans-serif; font-weight:700; letter-spacing: 1px;">🏭 INSTAPLAST PVT LTD</h1>
@@ -107,7 +107,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Live Notification Logs
+# Live Broadcast Operations Monitor
 st.markdown("<h4 style='color: #0284C7; font-weight:600;'>🔔 System Broadcast Dashboard</h4>", unsafe_allow_html=True)
 if st.session_state.notifications:
     for note in reversed(st.session_state.notifications[-5:]):
@@ -116,7 +116,7 @@ else:
     st.info("Log Stream Clear. No active leave operations recorded.")
 st.write("---")
 
-# Worker Session Mode
+# 6. Worker User Workspace Interface Terminal
 if user_role == "Worker":
     worker_names = [w['name'] for w in st.session_state.workers_list]
     
@@ -208,17 +208,14 @@ if user_role == "Worker":
                     if end_date >= start_date:
                         days_requested = (end_date - start_date).days + 1
                         
-                        def apply_attendance_dates():
-                            if "attendance" not in worker_data:
-                                worker_data["attendance"] = {}
-                            for d in range(start_date.day, min(end_date.day + 1, num_days + 1)):
-                                worker_data["attendance"][d] = f"⚠️ {leave_type}"
+                        if "attendance" not in worker_data:
+                            worker_data["attendance"] = {}
                         
                         if selected_pay_type == "Unpaid Leave Channel (Without Pay)":
-                            apply_attendance_dates()
+                            for d in range(start_date.day, min(end_date.day + 1, num_days + 1)):
+                                worker_data["attendance"][d] = "⚠️ Without Pay"
                             st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted Unpaid Leave from day {start_date.day} to {end_date.day} ({days_requested} Days).")
                             st.success(f"Success: Unpaid Leave window ({days_requested} Days) registered.")
-                            st.timer(1)
                             st.rerun()
                         else:
                             map_leave = {
@@ -231,7 +228,8 @@ if user_role == "Worker":
                             
                             if worker_data["balances"].get(b_key, 0.0) >= days_requested:
                                 worker_data["balances"][b_key] -= days_requested
-                                apply_attendance_dates()
+                                for d in range(start_date.day, min(end_date.day + 1, num_days + 1)):
+                                    worker_data["attendance"][d] = f"⚠️ {leave_type}"
                                 st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted Paid {leave_type} from day {start_date.day} to {end_date.day} ({days_requested} Days).")
                                 st.success(f"Success: Balance deduction adjusted. Total Days: {days_requested}")
                                 st.balloons()
@@ -245,11 +243,11 @@ if user_role == "Worker":
         else:
             st.info("🔒 Secure Directory: Provide identity verification token to pull company records.")
 
-# Admin Controller Session Mode
+# 7. Enterprise Management/Admin Workspace Terminal
 elif user_role == "Admin" and is_admin_authenticated:
     st.markdown("<h3 style='color: #1E3A8A; font-weight:600;'>🛠️ Enterprise Admin Control Center</h3>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["👥 Workforce Management & Authorization", "📋 Master Leave Balances Registry", "📊 Financial Payroll Compensation Sheet"])
+    tab1, tab2, tab3 = st.tabs(["👥 Workforce Management", "📋 Leave Balances Registry", "📊 Financial Payroll Sheet"])
     
     with tab1:
         col_admin1, col_admin2 = st.columns(2)
@@ -258,7 +256,7 @@ elif user_role == "Admin" and is_admin_authenticated:
             st.markdown("<h4 style='color: #0D9488;'>➕ Onboard New Workforce Profile</h4>", unsafe_allow_html=True)
             with st.form("add_form", clear_on_submit=True):
                 w_id = st.text_input("Assign Enterprise Worker ID")
-                w_cnic = st.text_input("Identity Card Token (CNIC)")
+                w_cnic = st.text_input("Identity Card Token (CNIC without dashes)")
                 w_name = st.text_input("Employee Full Legal Name")
                 w_fname = st.text_input("Father's Name")
                 w_dept = st.selectbox("Assign Segment Division", DEPARTMENTS)
@@ -352,7 +350,7 @@ elif user_role == "Admin" and is_admin_authenticated:
                     
                     u_salary = st.number_input("Modify Assigned Base Contract Compensation", min_value=0.0, step=1000.0, value=to_edit.get("basic_salary", 25000.0))
                     
-                    st.markdown("<p style='color:#E11D48; font-weight:bold; margin-top:15px;'>Direct Ledger Adjustments:</p>", unsafe_allow_html=True)
+                    st.markdown("##### Direct Ledger Adjustments:")
                     col_u1, col_u2 = st.columns(2)
                     u_am = col_u1.number_input("Annual Leave (M) Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("annual_m", 0.0)))
-                    u_anm = col_u2.number_input("Annual Leave (NM) Balance Allocation", min_value=0.0, value=float(to_edit["b
+                    u_anm = col_u2.number_input("Annual Leave (NM) Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("annual_nm", 0.0)))
