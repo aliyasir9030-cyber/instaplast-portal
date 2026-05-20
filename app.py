@@ -101,10 +101,9 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# --- 📢 نوٹیفیکیشن ڈیش بورڈ (سب کے لیے سامنے نظر آئے گا) ---
+# --- 📢 نوٹیفیکیشن ڈیش بورڈ ---
 st.markdown("<h3 style='color: #3B82F6;'>🔔 لیو نوٹیفیکیشن ڈیش بورڈ (Leave Notifications)</h3>", unsafe_allow_html=True)
 if st.session_state.notifications:
-    # تازہ ترین نوٹیفیکیشن سب سے اوپر دکھانے کے لیے الٹا (reverse) کیا ہے
     for note in reversed(st.session_state.notifications[-5:]): # صرف آخری 5 نوٹیفیکیشن دکھائے گا
         st.markdown(f"<div class='notification-box'>{note}</div>", unsafe_allow_html=True)
 else:
@@ -119,7 +118,6 @@ if user_role == "Worker (ورکر)":
     if not worker_names:
         st.warning("کوئی ورکر موجود نہیں ہے۔")
     else:
-        # پرائیویسی لاگ ان فارم
         st.markdown("<h4 style='color: #1E3A8A;'>👤 اپنا اکاؤنٹ لاگ ان کریں:</h4>", unsafe_allow_html=True)
         col_log1, col_log2 = st.columns(2)
         selected_worker_name = col_log1.selectbox("اپنا نام منتخب کریں (Select Your Name):", worker_names)
@@ -127,7 +125,6 @@ if user_role == "Worker (ورکر)":
         
         worker_data = next(w for w in st.session_state.workers_list if w['name'] == selected_worker_name)
         
-        # شناختی کارڈ میچ کرنے کی شرط (Security Check)
         if input_cnic == worker_data["cnic"]:
             st.success(f"🔓 لاگ ان کامیاب! خوش آمدید {worker_data['name']}")
             st.write("---")
@@ -213,7 +210,6 @@ if user_role == "Worker (ورکر)":
                         
                         if selected_pay_type == "Without Pay (بغیر تنخواہ/Unpaid)":
                             apply_attendance_dates()
-                            # نوٹیفیکیشن ڈیش بورڈ میں ایڈ کرنا
                             st.session_state.notifications.append(f"⚠️ ورکر {worker_data['name']} نے {start_date.day} سے {end_date.day} تاریخ تک کے لیے {days_requested} دن کی {leave_type} اپلائی کی ہے۔")
                             st.success(f"🎉 بغیر تنخواہ کی {days_requested} چھٹیاں ریکارڈ میں درج کر دی گئی ہیں۔")
                             st.rerun()
@@ -229,7 +225,6 @@ if user_role == "Worker (ورکر)":
                             if worker_data["balances"].get(b_key, 0.0) >= days_requested:
                                 worker_data["balances"][b_key] -= days_requested
                                 apply_attendance_dates()
-                                # نوٹیفیکیشن ڈیش بورڈ میں ایڈ کرنا
                                 st.session_state.notifications.append(f"⚠️ ورکر {worker_data['name']} نے {start_date.day} سے {end_date.day} تاریخ تک کے لیے {days_requested} دن کی {leave_type} اپلائی کی ہے۔")
                                 st.success(f"🎉 {days_requested} چھٹیاں بیلنس سے مائنس کر کے منتھ کارڈ اپڈیٹ کر دیا گیا ہے۔")
                                 st.balloons()
@@ -247,7 +242,7 @@ if user_role == "Worker (ورکر)":
 elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
     st.markdown("<h2 style='color: #1E3A8A; border-bottom: 2px solid #1E3A8A; padding-bottom:5px;'>🛠️ ایڈمن کنٹرول پینل (Admin Panel)</h2>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["👥 ورکرز مینجمنٹ", "📋 تمام ورکرز کا ریکارڈ (Leave Balances)", "📊 سیلری شیٹ (Salary Sheet)"])
+    tab1, tab2, tab3 = st.tabs(["👥 ورکرز مینجمنٹ & اپروول", "📋 تمام ورکرز کا ریکارڈ (Leave Balances)", "📊 سیلری شیٹ (Salary Sheet)"])
     
     with tab1:
         col_admin1, col_admin2 = st.columns(2)
@@ -282,10 +277,51 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
                     else:
                         st.error("آئی ڈی، نام اور شناختی کارڈ لازمی درج کریں۔")
 
+            # 🔥 نیا اضافہ: ایڈمن پینل سے براہ راست چھٹی اپلائی/منظور کرنے کا فارم
+            st.write("---")
+            st.markdown("<h4 style='color: #3B82F6;'>✍️ ایڈمن پینل سے چھٹی منظور کریں (Direct Approval)</h4>", unsafe_allow_html=True)
+            all_workers_names = [w['name'] for w in st.session_state.workers_list]
+            
+            adm_select_worker = st.selectbox("کس ورکر کی چھٹی منظور کرنی ہے؟", all_workers_names, key="adm_sel_w")
+            adm_worker_data = next(w for w in st.session_state.workers_list if w['name'] == adm_select_worker)
+            
+            adm_leave_pay = st.radio("نوعیت:", ["Paid Leave (تنخواہ کے ساتھ)", "Without Pay (بغیر تنخواہ)"], key="adm_pay", horizontal=True)
+            
+            if adm_leave_pay == "Paid Leave (تنخواہ کے ساتھ)":
+                adm_leave_type = st.selectbox("چھٹی کی قسم:", ["Casual Leave", "Sick Leave", "Annual Leave", "Compensatory Leave"], key="adm_l_type")
+            else:
+                adm_leave_type = "Without Pay"
+                
+            col_ad1, col_ad2 = st.columns(2)
+            adm_start = col_ad1.date_input("شروع تاریخ", key="adm_s_date")
+            adm_end = col_ad2.date_input("آخری تاریخ", key="adm_e_date")
+            
+            if st.button("✅ چھٹی فوراً منظور اور لاگو کریں", use_container_width=True):
+                if adm_end >= adm_start:
+                    days_num = (adm_end - adm_start).days + 1
+                    t_month_days = calendar.monthrange(adm_start.year, adm_start.month)[1]
+                    
+                    if "attendance" not in adm_worker_data:
+                        adm_worker_data["attendance"] = {}
+                    
+                    for d in range(adm_start.day, min(adm_end.day + 1, t_month_days + 1)):
+                        adm_worker_data["attendance"][d] = f"⚠️ {adm_leave_type} (Approved by Admin)"
+                    
+                    if adm_leave_pay == "Paid Leave (تنخواہ کے ساتھ)":
+                        map_k = {"Casual Leave": "casual", "Sick Leave": "sick", "Annual Leave": "annual", "Compensatory Leave": "compensatory"}
+                        k = map_k[adm_leave_type]
+                        adm_worker_data["balances"][k] = max(0.0, adm_worker_data["balances"].get(k, 0.0) - days_num)
+                    
+                    st.session_state.notifications.append(f"💼 ایڈمن نے ورکر {adm_select_worker} کی {days_num} دن کی {adm_leave_type} خود منظور کر دی ہے۔")
+                    st.success(f"🎉 {adm_select_worker} کی چھٹی کامیابی سے سسٹم میں درج اور بیلنس اپڈیٹ کر دیا گیا ہے!")
+                    st.rerun()
+                else:
+                    st.error("آخری تاریخ درست منتخب کریں۔")
+
         with col_admin2:
             st.markdown("<h4 style='color: #E11D48;'>✏️ ورکر ڈیٹا / چھٹیاں تبدیل کریں</h4>", unsafe_allow_html=True)
             all_workers = [w['name'] for w in st.session_state.workers_list]
-            edit_name = st.selectbox("ورکر منتخب کریں:", all_workers)
+            edit_name = st.selectbox("ورکر منتخب کریں:", all_workers, key="edit_sel")
             to_edit = next(w for w in st.session_state.workers_list if w['name'] == edit_name)
             
             u_name = st.text_input("نام تبدیل کریں", value=to_edit["name"])
@@ -314,63 +350,21 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
                 st.rerun()
                 
     with tab2:
-        st.markdown("<h4 style='color: #1E3A8A;'>📋 تمام ورکرز کا لائیو لیو ریکارڈ (Leave Balances Table)</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #1E3A8A;'>📋 تمام ورکرز کا لائیو لیو ریکارڈ اور اسٹیٹس</h4>", unsafe_allow_html=True)
         
         records_data = []
         for w in st.session_state.workers_list:
+            # ورکر نے اس مہینے جو چھٹیاں لیں ان کا ریکارڈ ایک ٹیکسٹ کی شکل میں دکھانے کے لیے
+            taken_leaves = []
+            for day, status in w.get("attendance", {}).items():
+                if "Leave" in status or "Without Pay" in status:
+                    taken_leaves.append(f"{day} تاریخ ({status.split(' ')[0]})")
+            
+            leaves_summary = ", ".join(taken_leaves) if taken_leaves else "کوئی چھٹی نہیں کی (حاضر)"
+            
             records_data.append({
                 "آئی ڈی": w["id"],
                 "ورکر کا نام": w["name"],
-                "شناختی کارڈ / پاس ورڈ": w["cnic"],
                 "شعبہ": w["dept"],
                 "Casual (ضروری کام)": w["balances"].get("casual", 0.0),
-                "Sick (بیماری)": w["balances"].get("sick", 0.0),
-                "Annual (سالانہ)": w["balances"].get("annual", 0.0),
-                "Compensatory (متبادل)": w["balances"].get("compensatory", 0.0),
-            })
-        df_records = pd.DataFrame(records_data)
-        st.dataframe(df_records, use_container_width=True)
-
-    with tab3:
-        st.markdown("<h4 style='color: #1E3A8A;'>📊 فیکٹری منتھلی سیلری شیٹ</h4>", unsafe_allow_html=True)
-        today = date.today()
-        num_days = calendar.monthrange(today.year, today.month)[1]
-        
-        salary_sheet_data = []
-        for w in st.session_state.workers_list:
-            basic = w.get("basic_salary", 25000.0)
-            daily_rate = basic / num_days
-            
-            unpaid_days = 0
-            for att_day, att_status in w.get("attendance", {}).items():
-                if "Without Pay" in att_status:
-                    unpaid_days += 1
-            
-            deduction = unpaid_days * daily_rate
-            net_salary = basic - deduction
-            
-            salary_sheet_data.append({
-                "ورکر آئی ڈی": w["id"],
-                "ورکر کا نام": w["name"],
-                "شعبہ (Dept)": w["dept"],
-                "بنیادی تنخواہ": f"Rs. {basic:,.2f}",
-                "بغیر تنخواہ چھٹیاں (Unpaid)": f"{unpaid_days} Days",
-                "کل کٹوتی (Deduction)": f"Rs. {deduction:,.2f}",
-                "نیٹ سیلری (Net Payable)": f"Rs. {net_salary:,.2f}"
-            })
-            
-        df_salary = pd.DataFrame(salary_sheet_data)
-        st.dataframe(df_salary, use_container_width=True)
-        
-        csv = df_salary.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 ڈاؤن لوڈ سیلری شیٹ (Excel/CSV File)",
-            data=csv,
-            file_name=f"Instaplast_Salary_Sheet_{today.strftime('%b_%Y')}.csv",
-            mime='text/csv',
-            use_container_width=True
-        )
-
-elif user_role == "Admin (ایڈمن)" and not is_admin_authenticated:
-    st.info("🔒 سیلری شیٹ اور ایڈمن پینل دیکھنے کے لیے سائیڈ بار میں درست پاس ورڈ درج کریں۔")
-         
+                "Sick (بیماری)": w["bala
