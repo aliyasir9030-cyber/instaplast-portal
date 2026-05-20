@@ -46,6 +46,7 @@ if 'workers_list' not in st.session_state:
             "id": "IP-1022",
             "cnic": "42101-1234567-1",
             "name": "Muhammad Raza-ul-Mustafa",
+            "f_name": "Ghulam Mustafa",
             "dept": "Utilities (Electrical & Instrumentation)",
             "shift": "G28SHIFT",
             "role": "Worker (ورکر)",
@@ -57,6 +58,7 @@ if 'workers_list' not in st.session_state:
             "id": "IP-1023",
             "cnic": "42101-7654321-3",
             "name": "Ali Ahmed",
+            "f_name": "Ahmed Khan",
             "dept": "Production",
             "shift": "A-SHIFT",
             "role": "Worker (ورکر)",
@@ -136,6 +138,7 @@ if user_role == "Worker (ورکر)":
                 st.markdown(f"""
                 <div class="profile-card">
                     <p style="margin:5px 0;"><b>نام:</b> {worker_data['name']}</p>
+                    <p style="margin:5px 0;"><b>ولدیت (Father's Name):</b> {worker_data.get('f_name', '---')}</p>
                     <p style="margin:5px 0;"><b>شناختی کارڈ:</b> {worker_data['cnic']}</p>
                     <p style="margin:5px 0;"><b>ورکر آئی ڈی:</b> {worker_data['id']}</p>
                     <p style="margin:5px 0;"><b>شعبہ:</b> {worker_data['dept']}</p>
@@ -253,6 +256,7 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
                 w_id = st.text_input("ورکر آئی ڈی")
                 w_cnic = st.text_input("شناختی کارڈ نمبر (یہی ورکر کا پاس ورڈ ہوگا)")
                 w_name = st.text_input("ورکر کا پورا نام")
+                w_fname = st.text_input("ولدیت (Father's Name)")
                 w_dept = st.selectbox("شعبہ (Department)", DEPARTMENTS)
                 w_shift = st.text_input("شفٹ (Shift)")
                 w_salary = st.number_input("بنیادی تنخواہ (Basic Salary)", min_value=0.0, step=1000.0, value=25000.0)
@@ -267,7 +271,7 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
                 if st.form_submit_button("✅ نیا ورکر ریکارڈ میں شامل کریں"):
                     if w_id and w_name and w_cnic:
                         st.session_state.workers_list.append({
-                            "id": w_id, "cnic": w_cnic, "name": w_name, "dept": w_dept, "shift": w_shift, "role": "Worker (ورکر)",
+                            "id": w_id, "cnic": w_cnic, "name": w_name, "f_name": w_fname, "dept": w_dept, "shift": w_shift, "role": "Worker (ورکر)",
                             "basic_salary": w_salary,
                             "balances": {"casual": allow_casual, "sick": allow_sick, "annual": allow_annual, "compensatory": allow_comp},
                             "attendance": {}
@@ -277,7 +281,7 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
                     else:
                         st.error("آئی ڈی، نام اور شناختی کارڈ لازمی درج کریں۔")
 
-            # 🔥 نیا اضافہ: ایڈمن پینل سے براہ راست چھٹی اپلائی/منظور کرنے کا فارم
+            # ایڈمن پینل سے براہ راست چھٹی اپلائی/منظور کرنے کا فارم
             st.write("---")
             st.markdown("<h4 style='color: #3B82F6;'>✍️ ایڈمن پینل سے چھٹی منظور کریں (Direct Approval)</h4>", unsafe_allow_html=True)
             all_workers_names = [w['name'] for w in st.session_state.workers_list]
@@ -325,6 +329,7 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
             to_edit = next(w for w in st.session_state.workers_list if w['name'] == edit_name)
             
             u_name = st.text_input("نام تبدیل کریں", value=to_edit["name"])
+            u_fname = st.text_input("ولدیت تبدیل کریں", value=to_edit.get("f_name", ""))
             u_cnic = st.text_input("شناختی کارڈ تبدیل کریں", value=to_edit["cnic"])
             u_id = st.text_input("آئی ڈی تبدیل کریں", value=to_edit["id"])
             u_dept = st.selectbox("شعبہ تبدیل کریں", DEPARTMENTS, index=DEPARTMENTS.index(to_edit["dept"]) if to_edit["dept"] in DEPARTMENTS else 0)
@@ -340,6 +345,7 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
             
             if st.button("🔄 ڈیٹا اور چھٹیاں اپڈیٹ کریں", use_container_width=True):
                 to_edit["name"] = u_name
+                to_edit["f_name"] = u_fname
                 to_edit["cnic"] = u_cnic
                 to_edit["id"] = u_id
                 to_edit["dept"] = u_dept
@@ -354,17 +360,9 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
         
         records_data = []
         for w in st.session_state.workers_list:
-            # ورکر نے اس مہینے جو چھٹیاں لیں ان کا ریکارڈ ایک ٹیکسٹ کی شکل میں دکھانے کے لیے
             taken_leaves = []
             for day, status in w.get("attendance", {}).items():
                 if "Leave" in status or "Without Pay" in status:
                     taken_leaves.append(f"{day} تاریخ ({status.split(' ')[0]})")
             
-            leaves_summary = ", ".join(taken_leaves) if taken_leaves else "کوئی چھٹی نہیں کی (حاضر)"
-            
-            records_data.append({
-                "آئی ڈی": w["id"],
-                "ورکر کا نام": w["name"],
-                "شعبہ": w["dept"],
-                "Casual (ضروری کام)": w["balances"].get("casual", 0.0),
-                "Sick (بیماری)": w["bala
+            leaves_summary = ", ".join(taken_leaves) if taken_leaves els
