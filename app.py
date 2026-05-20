@@ -94,7 +94,6 @@ if user_role == "Worker (ورکر)":
     if not worker_names:
         st.warning("کوئی ورکر موجود نہیں ہے۔")
     else:
-        # نام کا ڈبہ مین پیج پر سب سے اوپر (موبائل صارفین کے لیے آسان)
         st.markdown("<h4 style='color: #1E3A8A;'>👤 اپنا نام منتخب کریں (Select Your Name):</h4>", unsafe_allow_html=True)
         selected_worker_name = st.selectbox("", worker_names, label_visibility="collapsed")
         worker_data = next(w for w in st.session_state.workers_list if w['name'] == selected_worker_name)
@@ -208,7 +207,8 @@ if user_role == "Worker (ورکر)":
 elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
     st.markdown("<h2 style='color: #1E3A8A; border-bottom: 2px solid #1E3A8A; padding-bottom:5px;'>🛠️ ایڈمن کنٹرول پینل (Admin Panel)</h2>", unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["👥 ورکرز مینجمنٹ", "📊 سیلری شیٹ (Salary Sheet)"])
+    # اب یہاں ۳ الگ ٹیب بنادیے گئے ہیں
+    tab1, tab2, tab3 = st.tabs(["👥 ورکرز مینجمنٹ", "📋 تمام ورکرز کا ریکارڈ (Leave Balances)", "📊 سیلری شیٹ (Salary Sheet)"])
     
     with tab1:
         col_admin1, col_admin2 = st.columns(2)
@@ -258,10 +258,10 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
             
             st.markdown("<p style='color:#E11D48; font-weight:bold; margin-top:15px;'>🔄 چھٹیوں کا بیلنس اپڈیٹ کریں:</p>", unsafe_allow_html=True)
             col_u1, col_u2 = st.columns(2)
-            u_casual = col_u1.number_input("Casual Leave", min_value=0.0, value=float(to_edit["balances"].get("casual", 0.0)))
-            u_sick = col_u2.number_input("Sick Leave", min_value=0.0, value=float(to_edit["balances"].get("sick", 0.0)))
-            u_annual = col_u1.number_input("Annual Leave", min_value=0.0, value=float(to_edit["balances"].get("annual", 0.0)))
-            u_comp = col_u2.number_input("Compensatory Leave", min_value=0.0, value=float(to_edit["balances"].get("compensatory", 0.0)))
+            u_casual = col_u1.number_input("Casual Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("casual", 0.0)))
+            u_sick = col_u2.number_input("Sick Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("sick", 0.0)))
+            u_annual = col_u1.number_input("Annual Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("annual", 0.0)))
+            u_comp = col_u2.number_input("Compensatory Leave Balance", min_value=0.0, value=float(to_edit["balances"].get("compensatory", 0.0)))
             
             if st.button("🔄 ڈیٹا اور چھٹیاں اپڈیٹ کریں", use_container_width=True):
                 to_edit["name"] = u_name
@@ -275,15 +275,29 @@ elif user_role == "Admin (ایڈمن)" and is_admin_authenticated:
                 st.rerun()
                 
     with tab2:
-        st.markdown("<h4 style='color: #1E3A8A;'>📊 فیکٹری منتھلی سیلری شیٹ</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #1E3A8A;'>📋 تمام ورکرز کا لائیو لیو ریکارڈ (Leave Balances Table)</h4>", unsafe_allow_html=True)
+        st.write("یہاں مائنس ہونے کے بعد تمام ورکرز کا لائیو بیلنس شو ہو رہا ہے:")
         
+        records_data = []
+        for w in st.session_state.workers_list:
+            records_data.append({
+                "آئی ڈی": w["id"],
+                "ورکر کا نام": w["name"],
+                "شعبہ": w["dept"],
+                "Casual (ضروری کام)": w["balances"].get("casual", 0.0),
+                "Sick (بیماری)": w["balances"].get("sick", 0.0),
+                "Annual (سالانہ)": w["balances"].get("annual", 0.0),
+                "Compensatory (متبادل)": w["balances"].get("compensatory", 0.0),
+            })
+        df_records = pd.DataFrame(records_data)
+        st.dataframe(df_records, use_container_width=True)
+
+    with tab3:
+        st.markdown("<h4 style='color: #1E3A8A;'>📊 فیکٹری منتھلی سیلری شیٹ</h4>", unsafe_allow_html=True)
         today = date.today()
         num_days = calendar.monthrange(today.year, today.month)[1]
         
-        st.write(f"موجودہ مہینہ: **{today.strftime('%B %Y')}** (کل دن: {num_days})")
-        
         salary_sheet_data = []
-        
         for w in st.session_state.workers_list:
             basic = w.get("basic_salary", 25000.0)
             daily_rate = basic / num_days
