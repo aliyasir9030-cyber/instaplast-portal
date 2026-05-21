@@ -352,4 +352,5 @@ else:
                                 st.write(f"🔑 **Password:** {details.get('password', 'N/A')}")
                             
                             st.write("**Current Leave Balances Available:**")
-                            st.code(f"Casual (CL): {details.get('CL', 0)} Days | Sick: {details.get('Sick', 0)} Days | Annual: {details.get('Annual',
+                            # بریکٹ فکس کر دیا گیا ہے تاکہ SyntaxError نہ آئے
+                            st.code(f"Casual (CL): {details.get('CL', 0
