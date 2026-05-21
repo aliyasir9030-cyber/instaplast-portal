@@ -4,9 +4,9 @@ import calendar
 import pandas as pd
 
 # 1. Page Config Setup
-st.set_page_config(page_title="Instaplast - INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
+st.set_page_config(page_title="Gaironova - INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
-# 2. Clean Corporate Theme Styling (Instaplast UI Alignment)
+# 2. Clean Corporate Theme Styling (Gaironova UI Alignment)
 st.markdown("""
     <style>
     .main-header {
@@ -40,59 +40,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Memory Database Initialization with Required Leaves
+# 3. Memory Database Initialization - STARTS COMPLETELY EMPTY
 if 'workers_list' not in st.session_state:
-    st.session_state.workers_list = [
-        {
-            "id": "IP-1022",
-            "cnic": "4210112345671",
-            "name": "Muhammad Raza-ul-Mustafa",
-            "f_name": "Ghulam Mustafa",
-            "dept": "Utilities (Electrical & Instrumentation)",
-            "shift": "G28SHIFT",
-            "doj": "2020-03-15",
-            "dor": "2045-08-12",
-            "role": "Worker",
-            "basic_salary": 45000.0,
-            "balances": {"casual": 8.5, "sick": 5.0, "annual": 8.0, "compensation": 4.0},
-            "attendance": {5: "Annual Leave"} 
-        },
-        {
-            "id": "IP-1024",
-            "cnic": "4210198765432",
-            "name": "Yasir Ali",
-            "f_name": "Ali Nawaz",
-            "dept": "Utilities (Electrical & Instrumentation)",
-            "shift": "G28SHIFT",
-            "doj": "2021-05-10",
-            "dor": "2048-11-20",
-            "role": "Worker",
-            "basic_salary": 42000.0,
-            "balances": {"casual": 8.0, "sick": 6.0, "annual": 14.0, "compensation": 0.0},
-            "attendance": {20: "Casual Leave", 21: "Casual Leave"}
-        },
-        {
-            "id": "IP-1023",
-            "cnic": "4210176543213",
-            "name": "Ali Ahmed",
-            "f_name": "Ahmed Khan",
-            "dept": "Production",
-            "shift": "A-SHIFT",
-            "doj": "2022-06-01",
-            "dor": "2050-01-10",
-            "role": "Worker",
-            "basic_salary": 38000.0,
-            "balances": {"casual": 12.0, "sick": 6.0, "annual": 10.0, "compensation": 2.0},
-            "attendance": {15: "Sick Leave"}
-        }
-    ]
+    st.session_state.workers_list = []  # No pre-filled workers as requested
 
 if 'notifications' not in st.session_state:
     st.session_state.notifications = [
-        "💼 Executive Override: Admin enforced 2 days of Casual Leave onto profile: Yasir Ali.",
-        "📢 Employee Yasir Ali submitted Casual Leave from day 20 to 21 (2 Days).",
-        "📢 Ali Ahmed applied for Sick Leave on the 15th of this month.",
-        "📢 Muhammad Raza-ul-Mustafa applied for Annual Leave on the 5th of this month."
+        "📢 System Initialized: Database registry is empty and ready for fresh worker onboarding."
     ]
 
 DEPARTMENTS = [
@@ -137,16 +91,18 @@ if user_role == "Worker":
     worker_names = [w['name'] for w in st.session_state.workers_list]
     
     if not worker_names:
-        st.warning("Data Synchronization Error: No profiles detected.")
+        st.warning("⚠️ ڈیش بورڈ پر کوئی ورکر موجود نہیں ہے۔ برائے مہربانی ایڈمن پینل سے پہلے ورکرز کا ڈیٹا داخل کریں۔")
     else:
         st.markdown("<h4 style='color: #1E3A8A;'>👤 Employee Identity Verification</h4>", unsafe_allow_html=True)
         col_log1, col_log2 = st.columns(2)
         selected_worker_name = col_log1.selectbox("Select Profile Username:", worker_names)
         input_cnic = col_log2.text_input("Enter Identity Token (CNIC without dashes):", type="password")
         
-        worker_data = next((w for w in st.session_state.workers_list if w['name'] == selected_worker_name), None)
+        # Pull fresh dynamic reference directly from session state
+        worker_index = next((i for i, w in enumerate(st.session_state.workers_list) if w['name'] == selected_worker_name), None)
         
-        if worker_data and input_cnic == worker_data["cnic"]:
+        if worker_index is not None and input_cnic == st.session_state.workers_list[worker_index]["cnic"]:
+            worker_data = st.session_state.workers_list[worker_index]
             st.success(f"🔓 Session Authorized. Authorized Profile: {worker_data['name']}")
             st.write("---")
             
@@ -232,12 +188,12 @@ if user_role == "Worker":
                         b_key = map_leave[leave_type]
                         
                         if worker_data["balances"].get(b_key, 0.0) >= days_requested:
-                            worker_data["balances"][b_key] -= float(days_requested)
+                            st.session_state.workers_list[worker_index]["balances"][b_key] -= float(days_requested)
                             for d in range(start_date.day, min(end_date.day + 1, num_days + 1)):
-                                worker_data["attendance"][d] = f"⚠️ {leave_type}"
+                                st.session_state.workers_list[worker_index]["attendance"][d] = f"⚠️ {leave_type}"
+                            
                             st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted {leave_type} from day {start_date.day} to {end_date.day} ({days_requested} Days).")
                             st.success(f"Success: Balance deduction adjusted. Total Days: {days_requested}")
-                            st.balloons()
                             st.rerun()
                         else:
                             st.error(f"Quota Insufficient: Your requested allowance exceeds available {leave_type} credits.")
@@ -288,6 +244,7 @@ elif user_role == "Admin" and is_admin_authenticated:
                             "balances": {"casual": allow_casual, "sick": allow_sick, "annual": allow_annual, "compensation": allow_comp},
                             "attendance": {}
                         })
+                        st.session_state.notifications.append(f"➕ Added new worker profile: {w_name}")
                         st.success(f"Success: Record created for '{w_name}'")
                         st.rerun()
                     else:
@@ -299,9 +256,10 @@ elif user_role == "Admin" and is_admin_authenticated:
             
             if all_workers_names:
                 adm_select_worker = st.selectbox("Select Target Employee Profile:", all_workers_names, key="adm_sel_w")
-                adm_worker_data = next((w for w in st.session_state.workers_list if w['name'] == adm_select_worker), None)
+                adm_worker_index = next((i for i, w in enumerate(st.session_state.workers_list) if w['name'] == adm_select_worker), None)
                 
-                if adm_worker_data:
+                if adm_worker_index is not None:
+                    adm_worker_data = st.session_state.workers_list[adm_worker_index]
                     adm_leave_type = st.selectbox("Category Select:", ["Casual Leave", "Sick Leave", "Annual Leave", "Compensation Leave"], key="adm_l_type")
                         
                     col_ad1, col_ad2 = st.columns(2)
@@ -314,39 +272,40 @@ elif user_role == "Admin" and is_admin_authenticated:
                             t_month_days = calendar.monthrange(adm_start.year, adm_start.month)[1]
                             
                             if "attendance" not in adm_worker_data:
-                                adm_worker_data["attendance"] = {}
+                                st.session_state.workers_list[adm_worker_index]["attendance"] = {}
                             
                             for d in range(adm_start.day, min(adm_end.day + 1, t_month_days + 1)):
-                                adm_worker_data["attendance"][d] = f"⚠️ {adm_leave_type}"
+                                st.session_state.workers_list[adm_worker_index]["attendance"][d] = f"⚠️ {adm_leave_type}"
                             
                             map_k = {"Casual Leave": "casual", "Sick Leave": "sick", "Annual Leave": "annual", "Compensation Leave": "compensation"}
                             k = map_k[adm_leave_type]
-                            adm_worker_data["balances"][k] = max(0.0, float(adm_worker_data["balances"].get(k, 0.0)) - float(days_num))
+                            st.session_state.workers_list[adm_worker_index]["balances"][k] = max(0.0, float(adm_worker_data["balances"].get(k, 0.0)) - float(days_num))
                             
                             st.session_state.notifications.append(f"💼 Executive Override: Admin enforced {days_num} days of {adm_leave_type} onto profile: {adm_select_worker}.")
                             st.success(f"Success: Overrides written into profile matrix for {adm_select_worker}!")
                             st.rerun()
                         else:
                             st.error("Timeline Validation Error: End frame configuration fault.")
+            else:
+                st.info("No worker database loaded to run administrative overrides.")
 
         with col_admin2:
-            st.markdown("<h4 style='color: #E11D48;'>✏️ Modify Existing Enterprise Records</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='color: #E11D48;'>✏️ Modify / Delete Enterprise Records</h4>", unsafe_allow_html=True)
             all_workers = [w['name'] for w in st.session_state.workers_list]
             if all_workers:
-                edit_name = st.selectbox("Select Target Modification Record:", all_workers, key="edit_sel")
-                to_edit = next((w for w in st.session_state.workers_list if w['name'] == edit_name), None)
+                edit_name = st.selectbox("Select Target Record:", all_workers, key="edit_sel")
+                worker_idx = next((i for i, w in enumerate(st.session_state.workers_list) if w['name'] == edit_name), None)
                 
-                if to_edit:
+                if worker_idx is not None:
+                    to_edit = st.session_state.workers_list[worker_idx]
                     u_name = st.text_input("Modify Profile Username", value=to_edit["name"])
                     u_fname = st.text_input("Modify Parentage/Father Legal Name", value=to_edit.get("f_name", ""))
                     u_cnic = st.text_input("Modify Secured Identity Token (CNIC)", value=to_edit["cnic"])
                     u_id = st.text_input("Modify System Asset ID", value=to_edit["id"])
                     u_dept = st.selectbox("Modify Branch Segment Allocation", DEPARTMENTS, index=DEPARTMENTS.index(to_edit["dept"]) if to_edit["dept"] in DEPARTMENTS else 0)
                     u_shift = st.text_input("Modify Assignment Shift Schedule", value=to_edit["shift"])
-                    
                     u_doj = st.text_input("Modify Date of Joining (DOJ)", value=to_edit.get("doj", "2020-01-01"))
                     u_dor = st.text_input("Modify Date of Retirement (DOR)", value=to_edit.get("dor", "2045-01-01"))
-                    
                     u_salary = st.number_input("Modify Assigned Base Contract Compensation", min_value=0.0, step=1000.0, value=to_edit.get("basic_salary", 25000.0))
                     
                     st.markdown("<p style='color:#E11D48; font-weight:bold; margin-top:15px;'>Direct Ledger Adjustments:</p>", unsafe_allow_html=True)
@@ -356,72 +315,23 @@ elif user_role == "Admin" and is_admin_authenticated:
                     u_annual = col_u1.number_input("Annual Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("annual", 0.0)))
                     u_comp = col_u2.number_input("Compensation Leave Balance Allocation", min_value=0.0, value=float(to_edit["balances"].get("compensation", 0.0)))
                     
-                    if st.button("🔄 Sync Operations to Enterprise Record", use_container_width=True):
-                        to_edit["name"] = u_name
-                        to_edit["f_name"] = u_fname
-                        to_edit["cnic"] = u_cnic
-                        to_edit["id"] = u_id
-                        to_edit["dept"] = u_dept
-                        to_edit["shift"] = u_shift
-                        to_edit["doj"] = u_doj
-                        to_edit["dor"] = u_dor
-                        to_edit["basic_salary"] = u_salary
-                        to_edit["balances"] = {"casual": u_casual, "sick": u_sick, "annual": u_annual, "compensation": u_comp}
-                        st.success("Success: Operational variables committed to database stack.")
+                    col_btn1, col_btn2 = st.columns(2)
+                    
+                    # 1. Update Functionality
+                    if col_btn1.button("🔄 Sync Operations to Enterprise Record", use_container_width=True):
+                        st.session_state.workers_list[worker_idx] = {
+                            "id": u_id, "cnic": u_cnic, "name": u_name, "f_name": u_fname, "dept": u_dept, "shift": u_shift, "role": "Worker",
+                            "doj": u_doj, "dor": u_dor, "basic_salary": u_salary,
+                            "balances": {"casual": u_casual, "sick": u_sick, "annual": u_annual, "compensation": u_comp},
+                            "attendance": to_edit.get("attendance", {})
+                        }
+                        st.session_state.notifications.append(f"🔄 Admin modified matrix details for: {u_name}.")
+                        st.success(f"Success: Records updated for {u_name}!")
                         st.rerun()
-                
-    with tab2:
-        st.markdown("<h4 style='color: #1E3A8A;'>📋 System Master Leave Ledger Records</h4>", unsafe_allow_html=True)
-        
-        records_data = []
-        for w in st.session_state.workers_list:
-            taken_leaves = []
-            for day, status in w.get("attendance", {}).items():
-                if "Leave" in str(status):
-                    taken_leaves.append(f"Day {day} ({status})")
-            
-            if len(taken_leaves) > 0:
-                leaves_summary = ", ".join(taken_leaves)
-            else:
-                leaves_summary = "Clear (No Active Logs)"
-            
-            records_data.append({
-                "Worker ID": w["id"],
-                "Employee Name": w["name"],
-                "Father Name": w.get("f_name", "---"),
-                "Department Segment": w["dept"],
-                "Casual Leave": w["balances"].get("casual", 0.0),
-                "Sick Leave": w["balances"].get("sick", 0.0),
-                "Annual Leave": w["balances"].get("annual", 0.0),
-                "Compensation Leave": w["balances"].get("compensation", 0.0),
-                "Current Month Time Off Breakdown": leaves_summary
-            })
-        if records_data:
-            df_records = pd.DataFrame(records_data)
-            st.dataframe(df_records, use_container_width=True)
-        else:
-            st.info("System Alert: Master Ledger records stream empty.")
-
-    with tab3:
-        st.markdown("<h4 style='color: #1E3A8A;'>📊 Consolidated Payroll Operations Compensation Sheet</h4>", unsafe_allow_html=True)
-        
-        salary_sheet_data = []
-        for w in st.session_state.workers_list:
-            basic = w.get("basic_salary", 25000.0)
-            
-            salary_sheet_data.append({
-                "Asset Worker ID": w["id"],
-                "Legal Name": w["name"],
-                "Father Name": w.get("f_name", "---"),
-                "DOJ": w.get("doj", "---"),
-                "DOR": w.get("dor", "---"),
-                "Base Contract Allowance": f"Rs. {basic:,.2f}",
-                "Net Salary Payable": f"Rs. {basic:,.2f}"
-            })
-            
-        if salary_sheet_data:
-            df_salary = pd.DataFrame(salary_sheet_data)
-            st.dataframe(df_salary, use_container_width=True)
-
-elif user_role == "Admin" and not is_admin_authenticated:
-    st.info("🔒 Cryptographic Security: Authenticate management credentials within the gate layout to toggle access.")
+                    
+                    # 2. Delete Functionality
+                    if col_btn2.button("🗑️ Delete This Worker Record", use_container_width=True):
+                        st.session_state.notifications.append(f"❌ Admin deleted worker profile: {to_edit['name']}.")
+                        st.session_state.workers_list.pop(worker_idx)
+                        st.success("Success: Worker removed from data register!")
+                        st.rerun()
