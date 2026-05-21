@@ -2,9 +2,32 @@ import streamlit as st
 from datetime import datetime, date
 import calendar
 import pandas as pd
+import json
+import os
 
 # 1. Page Config Setup
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
+
+# File path to permanently store data on local disk
+DATA_FILE = "workers_data.json"
+
+# Helper function to load data from JSON file safely
+def load_permanent_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+# Helper function to save data to JSON file safely
+def save_permanent_data():
+    try:
+        with open(DATA_FILE, "w") as f:
+            json.dump(st.session_state.workers_list, f, indent=4)
+    except Exception as e:
+        st.error(f"Data Saving Error: {e}")
 
 # 2. Clean Corporate Theme Styling
 st.markdown("""
@@ -40,13 +63,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Memory Database Initialization - STARTS COMPLETELY EMPTY
+# 3. Memory Database Initialization - LOADS FROM FILE INSTEAD OF EMPTY
 if 'workers_list' not in st.session_state:
-    st.session_state.workers_list = []  
+    st.session_state.workers_list = load_permanent_data()
 
 if 'notifications' not in st.session_state:
     st.session_state.notifications = [
-        "📢 System Initialized: Database registry is empty and ready for fresh worker onboarding."
+        "📢 System Initialized: Permanent database registry synced successfully."
     ]
 
 DEPARTMENTS = [
@@ -135,7 +158,7 @@ if user_role == "Worker":
                     if day_name == "Sunday":
                         status = "🔴 Weekly Off"
                     else:
-                        status = worker_data.get("attendance", {}).get(day, "🟢 Present")
+                        status = worker_data.get("attendance", {}).get(str(day), worker_data.get("attendance", {}).get(day, "🟢 Present"))
                         
                     card_data.append({"Date": f"{day}/{today.month}", "Day": day_name, "Status": status})
                     
@@ -189,8 +212,9 @@ if user_role == "Worker":
                         if worker_data["balances"].get(b_key, 0.0) >= days_requested:
                             st.session_state.workers_list[worker_index]["balances"][b_key] -= float(days_requested)
                             for d in range(start_date.day, min(end_date.day + 1, num_days + 1)):
-                                st.session_state.workers_list[worker_index]["attendance"][d] = f"⚠️ {leave_type}"
+                                st.session_state.workers_list[worker_index]["attendance"][str(d)] = f"⚠️ {leave_type}"
                             
+                            save_permanent_data()  
                             st.session_state.notifications.append(f"⚠️ Employee {worker_data['name']} submitted {leave_type} from day {start_date.day} to {end_date.day} ({days_requested} Days).")
                             st.success(f"Success: Balance deduction adjusted. Total Days: {days_requested}")
                             st.rerun()
@@ -240,10 +264,11 @@ elif user_role == "Admin" and is_admin_authenticated:
                     if w_id and w_name and w_cnic:
                         st.session_state.workers_list.append({
                             "id": w_id, "cnic": w_cnic, "name": w_name, "f_name": w_fname, "dept": w_dept, "shift": w_shift, "role": "Worker",
-                            "doj": w_doj, "dor": w_dor, "basic_salary": w_salary,
+                            "doj": str(w_doj), "dor": str(w_dor), "basic_salary": w_salary,
                             "balances": {"casual": allow_casual, "sick": allow_sick, "annual": allow_annual, "compensation": allow_comp},
                             "attendance": {}
                         })
+                        save_permanent_data()  
                         st.session_state.notifications.append(f"➕ Added new worker profile: {w_name}")
                         st.success(f"Success: Record created for '{w_name}'")
                         st.rerun()
@@ -275,12 +300,13 @@ elif user_role == "Admin" and is_admin_authenticated:
                                 st.session_state.workers_list[adm_worker_index]["attendance"] = {}
                             
                             for d in range(adm_start.day, min(adm_end.day + 1, t_month_days + 1)):
-                                st.session_state.workers_list[adm_worker_index]["attendance"][d] = f"⚠️ {adm_leave_type}"
+                                st.session_state.workers_list[adm_worker_index]["attendance"][str(d)] = f"⚠️ {adm_leave_type}"
                             
                             map_k = {"Casual Leave": "casual", "Sick Leave": "sick", "Annual Leave": "annual", "Compensation Leave": "compensation"}
                             k = map_k[adm_leave_type]
                             st.session_state.workers_list[adm_worker_index]["balances"][k] = max(0.0, float(adm_worker_data["balances"].get(k, 0.0)) - float(days_num))
                             
+                            save_permanent_data()  
                             st.session_state.notifications.append(f"💼 Executive Override: Admin enforced {days_num} days of {adm_leave_type} onto profile: {adm_select_worker}.")
                             st.success(f"Success: Overrides written into profile matrix for {adm_select_worker}!")
                             st.rerun()
@@ -320,21 +346,7 @@ elif user_role == "Admin" and is_admin_authenticated:
                     if col_btn1.button("🔄 Sync Operations to Enterprise Record", use_container_width=True):
                         st.session_state.workers_list[worker_idx] = {
                             "id": u_id, "cnic": u_cnic, "name": u_name, "f_name": u_fname, "dept": u_dept, "shift": u_shift, "role": "Worker",
-                            "doj": u_doj, "dor": u_dor, "basic_salary": u_salary,
+                            "doj": str(u_doj), "dor": str(u_dor), "basic_salary": u_salary,
                             "balances": {"casual": u_casual, "sick": u_sick, "annual": u_annual, "compensation": u_comp},
                             "attendance": to_edit.get("attendance", {})
                         }
-                        st.session_state.notifications.append(f"🔄 Admin modified matrix details for: {u_name}.")
-                        st.success(f"Success: Records updated for {u_name}!")
-                        st.rerun()
-                    
-                    if col_btn2.button("🗑️ Delete This Worker Record", use_container_width=True):
-                        st.session_state.notifications.append(f"❌ Admin deleted worker profile: {to_edit['name']}.")
-                        st.session_state.workers_list.pop(worker_idx)
-                        st.success("Success: Worker removed from data register!")
-                        st.rerun()
-            else:
-                st.info("No registered personnel profiles available to modify.")
-
-    with tab2:
-        st.markdown("<h4 style='color: #1E3A8A;'>📋 Centralized Leave Balances Registry</h4>", unsafe_allow_html=True)
