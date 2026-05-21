@@ -16,7 +16,6 @@ def load_permanent_data():
         try:
             with open(DATA_FILE, "r") as f:
                 data = json.load(f)
-                # Ensure structure is correct
                 if "workers" not in data:
                     data["workers"] = {}
                 if "requests" not in data:
@@ -45,7 +44,7 @@ if "db_loaded" not in st.session_state:
     st.session_state.leave_requests = db["requests"]
     st.session_state.db_loaded = True
 
-# 2. Clean Corporate Theme Styling
+# 2. Clean Corporate Theme Styling (CRITICAL FIX FOR LINE 49 TYPEERROR)
 st.markdown("""
     <style>
     .main-header {
@@ -112,12 +111,11 @@ if access_role == "Worker":
                 reason = st.text_area("Reason for Leave:")
                 
                 if st.button("Submit Leave Application"):
-                    # Map Selection to Key
                     leave_key = "CL" if "Casual" in leave_type else "Sick" if "Sick" in leave_type else "Annual" if "Annual" in leave_type else "CO"
                     current_balance = w_data.get(leave_key, 0)
                     
                     if current_balance >= leave_days:
-                        # CRITICAL FIX: DO NOT CUT BALANCE HERE. Just create a pending request.
+                        # CRITICAL FIX: DO NOT CUT BALANCE HERE
                         req_id = len(st.session_state.leave_requests) + 1
                         new_req = {
                             "id": req_id,
@@ -129,7 +127,7 @@ if access_role == "Worker":
                             "status": "Pending"
                         }
                         st.session_state.leave_requests.append(new_req)
-                        save_permanent_data() # Save to file
+                        save_permanent_data()
                         st.success("✅ آپ کی چھٹی کی درخواست ایڈمن کو بھیج دی گئی ہے۔ اپروول کے بعد بیلنس اپڈیٹ ہوگا۔")
                         st.rerun()
                     else:
@@ -175,20 +173,17 @@ else:
             else:
                 st.error("❌ Name and Identity Token (CNIC) are mandatory fields.")
                 
-        # Delete/Remove Option
         if st.session_state.workers_dict:
             st.markdown("#### 🗑️ Remove Worker Profile")
             worker_to_delete = st.selectbox("Select Worker to Remove:", ["Select Worker"] + list(st.session_state.workers_dict.keys()))
             if worker_to_delete != "Select Worker":
                 if st.button(f"Permanently Delete {worker_to_delete}"):
                     del st.session_state.workers_dict[worker_to_delete]
-                    # Also remove pending requests for this worker to clean database
                     st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["worker"] != worker_to_delete]
                     save_permanent_data()
                     st.success(f"🗑️ Profile and leave records for '{worker_to_delete}' removed successfully.")
                     st.rerun()
 
-        # View Master Sheet Data
         if st.session_state.workers_dict:
             st.markdown("#### 📋 Company Worker Registry Master Sheet")
             st.write(st.session_state.workers_dict)
@@ -213,17 +208,14 @@ else:
                 
                 col_app, col_rej = st.columns(2)
                 
-                # APPROVE BUTTON - CUTS BALANCE HERE ONLY
                 if col_app.button(f"✅ Okay / Approve (ID: {req['id']})"):
                     w_name = req['worker']
                     l_key = req['leave_type']
                     days_to_cut = req['days']
                     
-                    # Double Check if worker exists and has balance
                     if w_name in st.session_state.workers_dict:
                         current_bal = st.session_state.workers_dict[w_name].get(l_key, 0)
                         if current_bal >= days_to_cut:
-                            # Actual balance cutting happens here now!
                             st.session_state.workers_dict[w_name][l_key] -= days_to_cut
                             req["status"] = "Approved"
                             save_permanent_data()
@@ -234,7 +226,6 @@ else:
                     else:
                         st.error("❌ Worker profile no longer exists in database.")
                 
-                # REJECT BUTTON - NO BALANCE DEDUCTION
                 if col_rej.button(f"❌ Reject / Cancel (ID: {req['id']})"):
                     req["status"] = "Rejected"
                     save_permanent_data()
