@@ -7,7 +7,25 @@ import os
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
 DATA_FILE = "workers_db.json"
-ADMIN_PASSWORD = "admin"  # ایڈمن پورٹل کا سیکیورٹی پاسورڈ اب بالکل درست ہے
+ADMIN_PASSWORD = "admin123"  # آپ کی تصویر کے مطابق پاسورڈ اب 'admin123' سیٹ کر دیا ہے
+
+# Custom Professional Theme Injection
+st.html("""
+<style>
+    /* Remove unnecessary default block margins */
+    div.block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
+    
+    /* Style all main subheaders and container cards professionally */
+    .section-title {
+        color: #1e3a8a;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-weight: 700;
+        border-bottom: 3px solid #e0a924;
+        padding-bottom: 5px;
+        margin-bottom: 15px;
+    }
+</style>
+""")
 
 def load_permanent_data():
     if os.path.exists(DATA_FILE):
@@ -38,7 +56,7 @@ if "db_loaded" not in st.session_state:
     st.session_state.leave_requests = db["requests"]
     st.session_state.db_loaded = True
 
-# Corporate Header
+# Corporate Banner Display
 st.html("""
     <div style="background-color: #1e3a8a; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 25px; border-left: 8px solid #e0a924;">
         <h1 style="color: #ffffff; margin: 0; font-size: 34px; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold;">🏭 INSTAPLAST PVT LTD</h1>
@@ -46,17 +64,17 @@ st.html("""
     </div>
 """)
 
-# Sidebar Navigation
+# Sidebar Navigation Control
 st.sidebar.title("🔒 Gate Panel")
 access_role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin Portal"])
 st.sidebar.divider()
 st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v12.0")
 
 # ==========================================
-# WORKER PORTAL
+# WORKER PORTAL INTERFACE
 # ==========================================
 if access_role == "Worker":
-    st.header("👤 Employee Identity Verification")
+    st.html("<h2 class='section-title'>👤 Employee Identity Verification & Leave Application</h2>")
     
     if not st.session_state.workers_dict:
         st.warning("⚠️ ڈیش بورڈ پر کوئی ورکر موجود نہیں ہے۔ برائے مہربانی پہلے ایڈمن پورٹل سے لاگ ان کر کے ورکرز کا پروفائل داخل کریں۔")
@@ -78,8 +96,8 @@ if access_role == "Worker":
                 st.success(f"🔓 Welcome, {selected_worker}!")
                 st.divider()
                 
-                # Live Dashboard Display
-                st.subheader("📊 Your Live Progress Dashboard")
+                # Live Performance Dashboard
+                st.html("<h3 class='section-title'>📊 Your Live Progress Dashboard</h3>")
                 cl_val = int(w_data.get("CL", 0))
                 sl_val = int(w_data.get("Sick", 0))
                 al_val = int(w_data.get("Annual", 0))
@@ -93,11 +111,11 @@ if access_role == "Worker":
                 
                 st.divider()
                 
-                # Leave Form & Profile Layout
+                # Dynamic Application Forms Layout
                 col_left_form, col_right_profile = st.columns([1.2, 0.8])
                 
                 with col_left_form:
-                    st.markdown("### 📝 Leave Application Form")
+                    st.html("### 📝 Leave Application Form")
                     leave_type = st.selectbox("Select Leave Type:", ["Casual Leave (CL)", "Sick Leave", "Annual Leave", "Compensation (CO)"])
                     
                     col_d1, col_d2 = st.columns(2)
@@ -132,7 +150,7 @@ if access_role == "Worker":
                             st.error("❌ Request Rejected: Insufficient leave balance!")
                             
                 with col_right_profile:
-                    st.markdown("### 📋 Verification Details")
+                    st.html("### 📋 Verification Details")
                     with st.container(border=True):
                         st.write(f"🆔 **Worker ID:** {w_data.get('id', 'N/A')}")
                         st.write(f"🧔 **Father's Name:** {w_data.get('father_name', 'N/A')}")
@@ -144,10 +162,10 @@ if access_role == "Worker":
                 st.error("❌ شناختی کارڈ نمبر یا ورکر پاسورڈ درست نہیں ہے۔")
 
 # ==========================================
-# ADMIN PORTAL
+# ADMIN PORTAL INTERFACE
 # ==========================================
 else:
-    st.header("🛠️ Admin Management Control Panel")
+    st.html("<h2 class='section-title'>🛠️ Admin Management Control Panel</h2>")
     admin_auth = st.text_input("Enter Admin Security Password:", type="password")
     
     if admin_auth == ADMIN_PASSWORD:
@@ -161,9 +179,9 @@ else:
                 "📊 Complete Factory Sheets"
             ])
             
-            # TAB 1: REGISTER & DELETE
+            # TAB 1: REGISTER & DELETE WORKERS
             with admin_tab:
-                st.markdown("#### ➕ Register New Factory Worker Profile")
+                st.html("<h4>➕ Register New Factory Worker Profile</h4>")
                 col_p1, col_p2, col_p3 = st.columns(3)
                 with col_p1:
                     w_id = st.text_input("Worker ID / Roll No:")
@@ -178,7 +196,7 @@ else:
                     w_end = st.date_input("Date of End (Contract End):", value=date.today())
                     w_pass = st.text_input("Assign Worker Login Password:", type="password", value="1234")
                 
-                st.markdown("##### 📊 Initial Leave Quota Allocation")
+                st.html("<h5>📊 Initial Leave Quota Allocation</h5>")
                 col_l1, col_l2, col_l3, col_l4 = st.columns(4)
                 with col_l1: cl_q = st.number_input("Casual Leave (CL):", value=0)
                 with col_l2: sl_q = st.number_input("Sick Leave:", value=0)
@@ -207,7 +225,7 @@ else:
                 
                 if st.session_state.workers_dict:
                     st.divider()
-                    st.markdown("#### 🗑️ Permanently Remove Profile From Records")
+                    st.html("<h4>🗑️ Permanently Remove Profile From Records</h4>")
                     worker_to_delete = st.selectbox("Select Worker to Remove Profile:", ["Select Worker"] + list(st.session_state.workers_dict.keys()))
                     if worker_to_delete != "Select Worker":
                         if st.button(f"Permanently Delete {worker_to_delete}", use_container_width=True):
@@ -217,9 +235,9 @@ else:
                             st.success(f"🗑️ Profile data for '{worker_to_delete}' has been completely wiped out.")
                             st.rerun()
 
-            # TAB 2: EDIT WORKER PROFILES & LEAVE BALANCES
+            # TAB 2: EDIT BALANCES & PROFILES
             with edit_tab:
-                st.markdown("#### ✏️ Audit & Edit Worker Balances / Profiles")
+                st.html("<h4>✏️ Audit & Edit Worker Balances / Profiles</h4>")
                 if not st.session_state.workers_dict:
                     st.info("کوئی ورکر ڈیٹا بیس میں موجود نہیں ہے۔")
                 else:
@@ -228,7 +246,7 @@ else:
                     if edit_worker_name != "Select Worker":
                         current_w_data = st.session_state.workers_dict[edit_worker_name]
                         
-                        st.markdown(f"**Editing Profile:** {edit_worker_name}")
+                        st.write(f"**Editing Profile:** {edit_worker_name}")
                         col_e1, col_e2, col_e3 = st.columns(3)
                         
                         with col_e1:
@@ -250,7 +268,7 @@ else:
                             edit_joining = st.date_input("Joining Date:", value=jd_obj, key="edit_j_date")
                             edit_end = st.date_input("Contract End Date:", value=ed_obj, key="edit_e_date")
                         
-                        st.markdown("##### ⚙️ Adjust Leave Quota Balances Manually")
+                        st.html("<h5>⚙️ Adjust Leave Quota Balances Manually</h5>")
                         col_eb1, col_eb2, col_eb3, col_eb4 = st.columns(4)
                         with col_eb1: edit_cl = st.number_input("Casual Leave Balance (CL):", value=int(current_w_data.get("CL", 0)))
                         with col_eb2: edit_sl = st.number_input("Sick Leave Balance:", value=int(current_w_data.get("Sick", 0)))
@@ -276,9 +294,9 @@ else:
                             st.success(f"✅ '{edit_worker_name}' کا ریکارڈ کامیابی سے اپڈیٹ اور سیو کر دیا گیا ہے!")
                             st.rerun()
 
-            # TAB 3: REQUESTS QUEUE
+            # TAB 3: LEAVE REQUESTS QUEUE
             with requests_tab:
-                st.markdown("#### 📥 Incoming Leave Applications Queue")
+                st.html("<h4>📥 Incoming Leave Applications Queue</h4>")
                 pending_reqs = [r for r in st.session_state.leave_requests if r["status"] == "Pending"]
                 
                 if not pending_reqs:
@@ -312,9 +330,9 @@ else:
                                     st.warning("Rejected.")
                                     st.rerun()
 
-            # TAB 4: COMPLETE RECORDS
+            # TAB 4: COMPLETE SHEETS RECORD
             with records_tab:
-                st.markdown("#### 📊 Factory Workers Sheets & Live Leave Balance")
+                st.html("<h4>📊 Factory Workers Sheets & Live Leave Balance</h4>")
                 if not st.session_state.workers_dict:
                     st.info("کوئی ورکر رجسٹرڈ نہیں ہے۔")
                 else:
@@ -331,7 +349,7 @@ else:
                                 st.write(f"⏳ **Date of End:** {details.get('end_date', 'N/A')}")
                                 st.write(f"🔑 **Password:** {details.get('password', 'N/A')}")
                             
-                            st.markdown("**Current Leave Balances Available:**")
+                            st.write("**Current Leave Balances Available:**")
                             st.code(f"Casual (CL): {details.get('CL', 0)} Days | Sick: {details.get('Sick', 0)} Days | Annual: {details.get('Annual', 0)} Days | CO: {details.get('CO', 0)} Days")
     elif admin_auth:
-        st.error("")
+        st.error("❌ ایڈمن پورٹل کا پاسورڈ غلط ہے۔")
