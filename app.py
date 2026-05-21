@@ -231,7 +231,6 @@ elif user_role == "Admin" and is_admin_authenticated:
                 st.markdown("<p style='color:#1E3A8A; font-weight:bold; margin-top:15px;'>📋 Set Annual Leave Entitlements:</p>", unsafe_allow_html=True)
                 col_l1, col_l2 = st.columns(2)
                 
-                # Defaulted to 0.0 so no automatic leaves are given unless explicitly typed
                 allow_casual = col_l1.number_input("Casual Leave Limit", min_value=0.0, value=0.0)
                 allow_sick = col_l2.number_input("Sick Leave Limit", min_value=0.0, value=0.0)
                 allow_annual = col_l1.number_input("Annual Leave Limit", min_value=0.0, value=0.0)
@@ -338,3 +337,4 @@ elif user_role == "Admin" and is_admin_authenticated:
                 st.info("No registered personnel profiles available to modify.")
 
     with tab2:
+        st.markdown("<h4 style='color: #1E3A8A;'>📋 Centralized Leave Balances Registry</h4>", un
