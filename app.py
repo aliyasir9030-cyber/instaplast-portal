@@ -1,16 +1,15 @@
 import streamlit as st
 from datetime import datetime, date
-import calendar
 import json
 import os
 
 # 1. Page Config Setup
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
-# File path to permanently store data on local disk / cloud container
+# File path to permanently store data
 DATA_FILE = "workers_data.json"
 
-# Helper function to load data from JSON file safely
+# Helper function to load data safely
 def load_permanent_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -25,7 +24,7 @@ def load_permanent_data():
             return {"workers": {}, "requests": []}
     return {"workers": {}, "requests": []}
 
-# Helper function to save data to JSON file safely
+# Helper function to save data safely
 def save_permanent_data():
     try:
         data_to_save = {
@@ -37,41 +36,17 @@ def save_permanent_data():
     except Exception as e:
         st.error(f"Data Saving Error: {e}")
 
-# Initialize Session States from permanent file
+# Initialize Session States
 if "db_loaded" not in st.session_state:
     db = load_permanent_data()
     st.session_state.workers_dict = db["workers"]
     st.session_state.leave_requests = db["requests"]
     st.session_state.db_loaded = True
 
-# 2. Clean Corporate Theme Styling (CRITICAL FIX FOR LINE 49 TYPEERROR)
-st.markdown("""
-    <style>
-    .main-header {
-        background-color: #0d47a1;
-        padding: 20px;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        margin-bottom: 25px;
-    }
-    .sub-card {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        border-left: 5px solid #0d47a1;
-        margin-bottom: 15px;
-    }
-    </style>
-""", unsafe_allowed_html=True)
-
-# Main Brand Header Banner
-st.markdown("""
-    <div class="main-header">
-        <h1>🏭 INSTAPLAST PVT LTD</h1>
-        <p>Time Management & Leave Allocation System</p>
-    </div>
-""", unsafe_allowed_html=True)
+# 2. Main Brand Header Banner (Simpler version to avoid markdown errors)
+st.title("🏭 INSTAPLAST PVT LTD")
+st.subheader("Time Management & Leave Allocation System")
+st.markdown("---")
 
 # Sidebar - Access Control
 st.sidebar.markdown("## 🔒 INSTAPLAST Gate Panel")
@@ -95,14 +70,21 @@ if access_role == "Worker":
             if cnic_token == actual_cnic:
                 st.success(f"🔓 Verification Successful. Welcome, {selected_worker}!")
                 
-                # Show Current Balances
+                # Show Current Balances safely
                 w_data = st.session_state.workers_dict[selected_worker]
                 st.markdown("#### 📊 Your Current Available Leave Balance")
+                
                 col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Casual Leave (CL)", w_data.get("CL", 0))
-                col2.metric("Sick Leave", w_data.get("Sick", 0))
-                col3.metric("Annual Leave", w_data.get("Annual", 0))
-                col4.metric("Compensation (CO)", w_data.get("CO", 0))
+                # Safeguard: Convert values to integer before passing to metric
+                cl_val = int(w_data.get("CL", 0))
+                sl_val = int(w_data.get("Sick", 0))
+                al_val = int(w_data.get("Annual", 0))
+                co_val = int(w_data.get("CO", 0))
+                
+                col1.metric("Casual Leave (CL)", cl_val)
+                col2.metric("Sick Leave", sl_val)
+                col3.metric("Annual Leave", al_val)
+                col4.metric("Compensation (CO)", co_val)
                 
                 # Leave Application Form
                 st.markdown("### 📝 Apply for New Leave")
@@ -112,10 +94,10 @@ if access_role == "Worker":
                 
                 if st.button("Submit Leave Application"):
                     leave_key = "CL" if "Casual" in leave_type else "Sick" if "Sick" in leave_type else "Annual" if "Annual" in leave_type else "CO"
-                    current_balance = w_data.get(leave_key, 0)
+                    current_balance = int(w_data.get(leave_key, 0))
                     
                     if current_balance >= leave_days:
-                        # CRITICAL FIX: DO NOT CUT BALANCE HERE
+                        # Request created as Pending (No balance deduction yet)
                         req_id = len(st.session_state.leave_requests) + 1
                         new_req = {
                             "id": req_id,
@@ -162,10 +144,10 @@ else:
                     "cnic": w_cnic,
                     "mobile": w_mobile,
                     "joining_date": str(w_joining),
-                    "CL": c_cl,
-                    "Sick": c_sl,
-                    "Annual": c_al,
-                    "CO": c_co
+                    "CL": int(c_cl),
+                    "Sick": int(c_sl),
+                    "Annual": int(c_al),
+                    "CO": int(c_co)
                 }
                 save_permanent_data()
                 st.success(f"💾 Profile for '{w_name}' has been successfully synced and saved!")
@@ -174,6 +156,7 @@ else:
                 st.error("❌ Name and Identity Token (CNIC) are mandatory fields.")
                 
         if st.session_state.workers_dict:
+            st.markdown("---")
             st.markdown("#### 🗑️ Remove Worker Profile")
             worker_to_delete = st.selectbox("Select Worker to Remove:", ["Select Worker"] + list(st.session_state.workers_dict.keys()))
             if worker_to_delete != "Select Worker":
@@ -185,6 +168,7 @@ else:
                     st.rerun()
 
         if st.session_state.workers_dict:
+            st.markdown("---")
             st.markdown("#### 📋 Company Worker Registry Master Sheet")
             st.write(st.session_state.workers_dict)
 
@@ -197,37 +181,32 @@ else:
             st.info("🛋️ No pending leave applications found in the queue.")
         else:
             for req in pending_reqs:
-                st.markdown(f"""
-                <div class="sub-card">
-                    <b>Worker Name:</b> {req['worker']} <br>
-                    <b>Leave Category:</b> {req['leave_type']} | <b>Requested Days:</b> {req['days']} Days <br>
-                    <b>Applied Date:</b> {req['date']} <br>
-                    <b>Reason provided:</b> {req['reason']}
-                </div>
-                """, unsafe_allowed_html=True)
+                st.write(f"**Worker:** {req['worker']} | **Type:** {req['leave_type']} | **Days:** {req['days']}")
+                st.write(f"**Reason:** {req['reason']} | **Date:** {req['date']}")
                 
                 col_app, col_rej = st.columns(2)
                 
                 if col_app.button(f"✅ Okay / Approve (ID: {req['id']})"):
                     w_name = req['worker']
                     l_key = req['leave_type']
-                    days_to_cut = req['days']
+                    days_to_cut = int(req['days'])
                     
                     if w_name in st.session_state.workers_dict:
-                        current_bal = st.session_state.workers_dict[w_name].get(l_key, 0)
+                        current_bal = int(st.session_state.workers_dict[w_name].get(l_key, 0))
                         if current_bal >= days_to_cut:
                             st.session_state.workers_dict[w_name][l_key] -= days_to_cut
                             req["status"] = "Approved"
                             save_permanent_data()
-                            st.success(f"👍 Approved! {days_to_cut} days deducted from {w_name}'s {l_key} balance.")
+                            st.success(f"👍 Approved! {days_to_cut} days deducted.")
                             st.rerun()
                         else:
-                            st.error("❌ Worker does not have enough balance left to approve this leave!")
+                            st.error("❌ Worker does not have enough balance left!")
                     else:
-                        st.error("❌ Worker profile no longer exists in database.")
+                        st.error("❌ Worker profile no longer exists.")
                 
                 if col_rej.button(f"❌ Reject / Cancel (ID: {req['id']})"):
                     req["status"] = "Rejected"
                     save_permanent_data()
-                    st.warning("⚠️ Leave request rejected. No changes made to balance.")
+                    st.warning("⚠️ Leave request rejected.")
                     st.rerun()
+                st.markdown("---")
