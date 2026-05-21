@@ -3,7 +3,7 @@ from datetime import datetime, date
 import json
 import os
 
-# Page Config Setup
+# Page Setup
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
 DATA_FILE = "workers_data.json"
@@ -37,16 +37,22 @@ if "db_loaded" not in st.session_state:
     st.session_state.leave_requests = db["requests"]
     st.session_state.db_loaded = True
 
-# Native App Headers
-st.title("🏭 INSTAPLAST PVT LTD")
-st.subheader("Time Management & Leave Allocation System")
-st.divider()
+# ==========================================
+# PREMIUM CORPORATE CONTAINER HEADER
+# ==========================================
+with st.container(border=True):
+    st.markdown("""
+        <div style="background-color: #1e3a8a; padding: 24px; border-radius: 8px; text-align: center; margin-bottom: 10px;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-family: 'Arial Black', sans-serif; letter-spacing: 1px;">🏭 INSTAPLAST PVT LTD</h1>
+            <p style="color: #e2e8f0; margin: 8px 0 0 0; font-size: 16px; font-weight: 500;">Time Management & Leave Allocation System</p>
+        </div>
+    """, unsafe_allowed_html=True)
 
-# Sidebar Setup
+# Sidebar Control
 st.sidebar.title("🔒 Gate Panel")
 access_role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin Portal"])
 st.sidebar.divider()
-st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v8.0")
+st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v9.0")
 
 # ==========================================
 # WORKER PORTAL
@@ -83,8 +89,8 @@ if access_role == "Worker":
                     with col_left_form:
                         st.subheader("📝 Leave Application Form")
                         leave_type = st.selectbox("Select Leave Type:", ["Casual Leave (CL)", "Sick Leave", "Annual Leave", "Compensation (CO)"])
-                        leave_days = st.number_input("Number of Days:", min_value=1, max_value=30, value=1)
-                        reason = st.text_area("State Reason:")
+                        leave_days = st.number_input("Number of Days Required:", min_value=1, max_value=30, value=1)
+                        reason = st.text_area("State Reason for Leave:")
                         
                         if st.button("Apply Now (Submit Request)", use_container_width=True):
                             leave_key = "CL" if "Casual" in leave_type else "Sick" if "Sick" in leave_type else "Annual" if "Annual" in leave_type else "CO"
@@ -103,7 +109,7 @@ if access_role == "Worker":
                                 }
                                 st.session_state.leave_requests.append(new_req)
                                 save_permanent_data()
-                                st.success("✅ درخواست ایڈمن پینل کو بھیج دی گئی ہے۔")
+                                st.success("✅ آپ کی درخواست ایڈمن پینل کو کامیابی سے بھیج دی گئی ہے۔")
                                 st.rerun()
                             else:
                                 st.error("❌ Request Rejected: Insufficient balance!")
@@ -115,7 +121,7 @@ if access_role == "Worker":
                         st.info(f"🔵 **Annual Leave:** {al_val} Days Available")
                         st.error(f"🔴 **Compensation (CO):** {co_val} Days Available")
                 else:
-                    st.error("❌ Incorrect Identity Token.")
+                    st.error("❌ Incorrect Identity Token (CNIC).")
 
 # ==========================================
 # ADMIN PORTAL
@@ -131,54 +137,52 @@ else:
             col_inp1, col_inp2 = st.columns(2)
             with col_inp1:
                 w_name = st.text_input("Worker Full Name:")
-                w_cnic = st.text_input("ID Card Number / CNIC:")
+                w_cnic = st.text_input("ID Card Number / CNIC (No Dashes):")
             with col_inp2:
-                w_mobile = st.text_input("Mobile Number:")
-                w_joining = st.date_input("Date of Joining:", value=date.today())
+                w_mobile = st.text_input("Mobile / WhatsApp Number:")
+                w_joining = st.date_input("Date of Joining Company:", value=date.today())
             
-            bal1, bal2, bal3, bal4 = st.columns(4)
-            with bal1: c_cl = st.number_input("Casual (CL):", min_value=0, value=10)
-            with bal2: c_sl = st.number_input("Sick:", min_value=0, value=8)
-            with bal3: c_al = st.number_input("Annual:", min_value=0, value=14)
-            with bal4: c_co = st.number_input("Compensation (CO):", min_value=0, value=0)
-            
+            # یہاں سے پرانے لیو بیلنس کے فیلڈز ہٹا دیے گئے ہیں، ورکر رجسٹر ہوتے ہی ڈیفالٹ کوٹہ خود مل جائے گا
             if st.button("Save Profile & Commit Registry", use_container_width=True):
                 if w_name and w_cnic:
+                    # نئے ورکر کو سسٹم خودکار طور پر فکسڈ بیلنس الاٹ کر دے گا
                     st.session_state.workers_dict[w_name] = {
                         "cnic": w_cnic,
                         "mobile": w_mobile,
                         "joining_date": str(w_joining),
-                        "CL": int(c_cl),
-                        "Sick": int(c_sl),
-                        "Annual": int(c_al),
-                        "CO": int(c_co)
+                        "CL": 10,
+                        "Sick": 8,
+                        "Annual": 14,
+                        "CO": 0
                     }
                     save_permanent_data()
-                    st.success(f"💾 Profile for '{w_name}' saved!")
+                    st.success(f"💾 Profile for '{w_name}' successfully saved into registry!")
                     st.rerun()
                     
             if st.session_state.workers_dict:
                 st.divider()
+                st.markdown("#### 🗑️ Remove Profile From Records")
                 worker_to_delete = st.selectbox("Select Worker to Remove:", ["Select Worker"] + list(st.session_state.workers_dict.keys()))
                 if worker_to_delete != "Select Worker":
                     if st.button(f"Permanently Delete {worker_to_delete}", use_container_width=True):
                         del st.session_state.workers_dict[worker_to_delete]
                         st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["worker"] != worker_to_delete]
                         save_permanent_data()
-                        st.success(f"🗑️ Profile '{worker_to_delete}' wiped.")
+                        st.success(f"🗑️ Profile data for '{worker_to_delete}' has been removed.")
                         st.rerun()
 
         with requests_tab:
-            st.markdown("#### 📥 Incoming Leave Applications")
+            st.markdown("#### 📥 Incoming Leave Applications Queue")
             pending_reqs = [r for r in st.session_state.leave_requests if r["status"] == "Pending"]
             
             if not pending_reqs:
-                st.info("🛋️ No pending leave applications.")
+                st.info("🛋️ No pending leave applications found in the queue.")
             else:
                 for req in pending_reqs:
                     with st.container(border=True):
-                        st.write(f"👤 **Worker:** {req['worker']} | 📅 **Leave Type:** {req['leave_type']}")
-                        st.write(f"⏳ **Days:** {req['days']} | 📝 **Reason:** {req['reason']}")
+                        st.write(f"👤 **Worker Name:** {req['worker']}")
+                        st.write(f"📋 **Leave Type:** {req['leave_type']} | **Duration:** {req['days']} Days")
+                        st.write(f"💬 **Reason:** {req['reason']}")
                         
                         col_app, col_rej = st.columns(2)
                         with col_app:
@@ -186,6 +190,7 @@ else:
                                 w_name = req['worker']
                                 l_key = req['leave_type']
                                 days_to_cut = int(req['days'])
+                                
                                 if w_name in st.session_state.workers_dict:
                                     st.session_state.workers_dict[w_name][l_key] -= days_to_cut
                                     req["status"] = "Approved"
