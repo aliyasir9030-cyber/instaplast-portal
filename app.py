@@ -4,9 +4,9 @@ import calendar
 import pandas as pd
 
 # 1. Page Config Setup
-st.set_page_config(page_title="Gaironova - INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
+st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
-# 2. Clean Corporate Theme Styling (Gaironova UI Alignment)
+# 2. Clean Corporate Theme Styling (Corporate UI Alignment)
 st.markdown("""
     <style>
     .main-header {
@@ -42,7 +42,7 @@ st.markdown("""
 
 # 3. Memory Database Initialization - STARTS COMPLETELY EMPTY
 if 'workers_list' not in st.session_state:
-    st.session_state.workers_list = []  # No pre-filled workers as requested
+    st.session_state.workers_list = []  
 
 if 'notifications' not in st.session_state:
     st.session_state.notifications = [
@@ -73,7 +73,7 @@ if user_role == "Admin":
 st.markdown("""
     <div class="main-header">
         <h1 style="color:white; margin:0; font-family: 'Arial', sans-serif; font-weight:700; letter-spacing: 1px;">🏭 INSTAPLAST PVT LTD</h1>
-        <p style="color:#E0F2FE; margin:6px 0 0 0; font-size:16px; font-weight: 400;">Gaironova Time Management & Leave Allocation System</p>
+        <p style="color:#E0F2FE; margin:6px 0 0 0; font-size:16px; font-weight: 400;">Time Management & Leave Allocation System</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -98,7 +98,6 @@ if user_role == "Worker":
         selected_worker_name = col_log1.selectbox("Select Profile Username:", worker_names)
         input_cnic = col_log2.text_input("Enter Identity Token (CNIC without dashes):", type="password")
         
-        # Pull fresh dynamic reference directly from session state
         worker_index = next((i for i, w in enumerate(st.session_state.workers_list) if w['name'] == selected_worker_name), None)
         
         if worker_index is not None and input_cnic == st.session_state.workers_list[worker_index]["cnic"]:
@@ -231,10 +230,12 @@ elif user_role == "Admin" and is_admin_authenticated:
                 
                 st.markdown("<p style='color:#1E3A8A; font-weight:bold; margin-top:15px;'>📋 Set Annual Leave Entitlements:</p>", unsafe_allow_html=True)
                 col_l1, col_l2 = st.columns(2)
-                allow_casual = col_l1.number_input("Casual Leave Limit", min_value=0.0, value=12.0)
-                allow_sick = col_l2.number_input("Sick Leave Limit", min_value=0.0, value=6.0)
-                allow_annual = col_l1.number_input("Annual Leave Limit", min_value=0.0, value=10.0)
-                allow_comp = col_l2.number_input("Compensation Leave Limit", min_value=0.0, value=4.0)
+                
+                # Defaulted to 0.0 so no automatic leaves are given unless explicitly typed
+                allow_casual = col_l1.number_input("Casual Leave Limit", min_value=0.0, value=0.0)
+                allow_sick = col_l2.number_input("Sick Leave Limit", min_value=0.0, value=0.0)
+                allow_annual = col_l1.number_input("Annual Leave Limit", min_value=0.0, value=0.0)
+                allow_comp = col_l2.number_input("Compensation Leave Limit", min_value=0.0, value=0.0)
                 
                 if st.form_submit_button("✅ Sync Profile to Database Registry"):
                     if w_id and w_name and w_cnic:
@@ -317,7 +318,6 @@ elif user_role == "Admin" and is_admin_authenticated:
                     
                     col_btn1, col_btn2 = st.columns(2)
                     
-                    # 1. Update Functionality
                     if col_btn1.button("🔄 Sync Operations to Enterprise Record", use_container_width=True):
                         st.session_state.workers_list[worker_idx] = {
                             "id": u_id, "cnic": u_cnic, "name": u_name, "f_name": u_fname, "dept": u_dept, "shift": u_shift, "role": "Worker",
@@ -329,9 +329,12 @@ elif user_role == "Admin" and is_admin_authenticated:
                         st.success(f"Success: Records updated for {u_name}!")
                         st.rerun()
                     
-                    # 2. Delete Functionality
                     if col_btn2.button("🗑️ Delete This Worker Record", use_container_width=True):
                         st.session_state.notifications.append(f"❌ Admin deleted worker profile: {to_edit['name']}.")
                         st.session_state.workers_list.pop(worker_idx)
                         st.success("Success: Worker removed from data register!")
                         st.rerun()
+            else:
+                st.info("No registered personnel profiles available to modify.")
+
+    with tab2:
