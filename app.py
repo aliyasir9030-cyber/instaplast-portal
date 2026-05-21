@@ -6,7 +6,7 @@ import pandas as pd
 # 1. Page Config Setup
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
-# 2. Clean Corporate Theme Styling (Corporate UI Alignment)
+# 2. Clean Corporate Theme Styling
 st.markdown("""
     <style>
     .main-header {
@@ -337,4 +337,4 @@ elif user_role == "Admin" and is_admin_authenticated:
                 st.info("No registered personnel profiles available to modify.")
 
     with tab2:
-        st.markdown("<h4 style='color: #1E3A8A;'>📋 Centralized Leave Balances Registry</h4>", un
+        st.markdown("<h4 style='color: #1E3A8A;'>📋 Centralized Leave Balances Registry</h4>", unsafe_allow_html=True)
