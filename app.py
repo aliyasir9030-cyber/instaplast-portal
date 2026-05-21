@@ -7,7 +7,7 @@ import os
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
 DATA_FILE = "workers_db.json"
-ADMIN_PASSWORD = "admin"  # ایڈمن پورٹل کا سیکیورٹی پاسورڈ
+ADMIN_PASSWORD = "admin"  # ایڈمن پورٹل کا سیکیورٹی پاسورڈ اب بالکل درست ہے
 
 def load_permanent_data():
     if os.path.exists(DATA_FILE):
@@ -178,9 +178,8 @@ else:
                     w_end = st.date_input("Date of End (Contract End):", value=date.today())
                     w_pass = st.text_input("Assign Worker Login Password:", type="password", value="1234")
                 
-                st.markdown("##### 📊 Initial Leave Quota Allocation (ڈیفالٹ زیرو)")
+                st.markdown("##### 📊 Initial Leave Quota Allocation")
                 col_l1, col_l2, col_l3, col_l4 = st.columns(4)
-                # آپ کی فرمائش کے مطابق اب یہ پہلے سے سب 0 پر ہوں گی
                 with col_l1: cl_q = st.number_input("Casual Leave (CL):", value=0)
                 with col_l2: sl_q = st.number_input("Sick Leave:", value=0)
                 with col_l3: al_q = st.number_input("Annual Leave:", value=0)
@@ -203,7 +202,7 @@ else:
                             "CO": co_q
                         }
                         save_permanent_data()
-                        st.success(f"💾 Profile for '{w_name}' successfully locked into database!")
+                        st.success(f"💾 Profile for '{w_name}' successfully saved!")
                         st.rerun()
                 
                 if st.session_state.workers_dict:
@@ -218,7 +217,7 @@ else:
                             st.success(f"🗑️ Profile data for '{worker_to_delete}' has been completely wiped out.")
                             st.rerun()
 
-            # NEW TAB 2: EDIT WORKER PROFILES & LEAVE BALANCES
+            # TAB 2: EDIT WORKER PROFILES & LEAVE BALANCES
             with edit_tab:
                 st.markdown("#### ✏️ Audit & Edit Worker Balances / Profiles")
                 if not st.session_state.workers_dict:
@@ -241,7 +240,6 @@ else:
                             edit_mobile = st.text_input("Mobile Number:", value=current_w_data.get("mobile", ""))
                             edit_salary = st.text_input("Monthly Salary:", value=current_w_data.get("salary", "0"))
                         with col_e3:
-                            # Dates Handling
                             try:
                                 jd_obj = datetime.strptime(current_w_data.get("joining_date", str(date.today())), "%Y-%m-%d").date()
                                 ed_obj = datetime.strptime(current_w_data.get("end_date", str(date.today())), "%Y-%m-%d").date()
@@ -336,4 +334,4 @@ else:
                             st.markdown("**Current Leave Balances Available:**")
                             st.code(f"Casual (CL): {details.get('CL', 0)} Days | Sick: {details.get('Sick', 0)} Days | Annual: {details.get('Annual', 0)} Days | CO: {details.get('CO', 0)} Days")
     elif admin_auth:
-        st.error("❌ ایڈمن پورٹل کا پاسورڈ غلط ہے۔")
+        st.error("")
