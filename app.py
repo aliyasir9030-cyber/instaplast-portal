@@ -43,86 +43,96 @@ if "db_loaded" not in st.session_state:
     st.session_state.leave_requests = db["requests"]
     st.session_state.db_loaded = True
 
-# 2. Advanced Custom CSS Styling for Beautiful UI
+# 2. Complete Premium CSS Custom Design
 st.markdown("""
     <style>
-    /* Main Background & Fonts */
+    /* Main Background color */
     .stApp {
-        background-color: #f4f6f9;
+        background-color: #f5f7fa;
     }
     
-    /* Elegant Main Header Banner */
-    .main-header {
+    /* Main Header Banner */
+    .company-banner {
         background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
         padding: 30px;
-        border-radius: 15px;
-        color: white;
+        border-radius: 12px;
         text-align: center;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        color: white;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
         border-bottom: 5px solid #ffb300;
     }
-    .main-header h1 {
+    .company-banner h1 {
         color: #ffffff !important;
-        font-size: 38px !important;
+        font-size: 36px !important;
         font-weight: bold !important;
-        margin-bottom: 5px !important;
-        letter-spacing: 1px;
+        margin: 0 !important;
     }
-    .main-header p {
+    .company-banner p {
         color: #ffb300 !important;
         font-size: 18px !important;
-        margin: 0 !important;
+        margin-top: 5px !important;
     }
     
     /* Beautiful Section Cards */
-    .section-card {
+    .main-box {
         background-color: #ffffff;
         padding: 25px;
         border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         border-top: 5px solid #0052cc;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
     
-    /* Leave Application Cards for Admin */
-    .leave-request-card {
+    /* Colorful Leave Balance Cards */
+    .balance-card {
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .cl-box { background: linear-gradient(135deg, #2193b0, #6dd5ed); }
+    .sl-box { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .al-box { background: linear-gradient(135deg, #ff9966, #ff5e62); }
+    .co-box { background: linear-gradient(135deg, #7f00ff, #e100ff); }
+    
+    .balance-title { font-size: 15px !important; opacity: 0.9; margin-bottom: 5px; }
+    .balance-number { font-size: 32px !important; font-weight: bold; }
+    
+    /* Request List Style for Admin */
+    .request-box {
         background-color: #ffffff;
         padding: 20px;
         border-radius: 10px;
         border-left: 6px solid #ffb300;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         margin-bottom: 15px;
-    }
-    
-    /* Label Adjustments */
-    label {
-        font-weight: bold !important;
-        color: #1e293b !important;
     }
     </style>
 """, unsafe_allowed_html=True)
 
-# Main Dashboard Banner Display
+# Main Banner Display
 st.markdown("""
-    <div class="main-header">
+    <div class="company-banner">
         <h1>🏭 INSTAPLAST PVT LTD</h1>
-        <p>💥 Factory Leave Management & Real-Time Sync Portal 💥</p>
+        <p>✨ Automated Leave Allocation & Production Control Portal ✨</p>
     </div>
 """, unsafe_allowed_html=True)
 
-# Sidebar - Elegant Access Controls
-st.sidebar.markdown("## 🔒 INSTAPLAST Control Gate")
-access_role = st.sidebar.selectbox("Choose Your Access Role:", ["Worker", "Admin Portal"])
+# Sidebar Design
+st.sidebar.markdown("## 🔒 Control Panel")
+access_role = st.sidebar.selectbox("Choose Access Role:", ["Worker", "Admin Portal"])
 st.sidebar.markdown("---")
-st.sidebar.info("💡 Tip: Admin can manage profiles, while Workers can check balances and drop requests.")
+st.sidebar.markdown("<p style='color:#666;'>INSTAPLAST System Sync v2.5</p>", unsafe_allowed_html=True)
 
 # ==========================================
 # WORKER PORTAL
 # ==========================================
 if access_role == "Worker":
-    st.markdown('<div class="section-card">', unsafe_allowed_html=True)
-    st.markdown("### 👤 Employee Identity Verification & Leave Application")
+    st.markdown('<div class="main-box">', unsafe_allowed_html=True)
+    st.markdown("### 👤 Employee Verification & Application")
     
     if not st.session_state.workers_dict:
         st.warning("⚠️ ڈیش بورڈ پر کوئی ورکر موجود نہیں ہے۔ برائے مہربانی ایڈمن پینل سے پہلے ورکرز کا ڈیٹا داخل کریں۔")
@@ -137,32 +147,30 @@ if access_role == "Worker":
                 st.success(f"🔓 Verification Successful. Welcome back, {selected_worker}!")
                 st.markdown('</div>', unsafe_allowed_html=True) # Close Verification Card
                 
-                # Show Current Balances with Premium Grid Design
+                # Fetch Data & Safeguard to Integer
                 w_data = st.session_state.workers_dict[selected_worker]
-                st.markdown("#### 📊 Your Live Available Leave Balances")
-                
                 cl_val = int(w_data.get("CL", 0))
                 sl_val = int(w_data.get("Sick", 0))
                 al_val = int(w_data.get("Annual", 0))
                 co_val = int(w_data.get("CO", 0))
                 
-                # Stylized columns for metrics
-                box1, box2, box3, box4 = st.columns(4)
-                with box1:
-                    st.compound_container = st.container()
-                    st.metric(label="✨ Casual Leave (CL)", value=cl_val)
-                with box2:
-                    st.compound_container = st.container()
-                    st.metric(label="🩺 Sick Leave", value=sl_val)
-                with box3:
-                    st.compound_container = st.container()
-                    st.metric(label="📅 Annual Leave", value=al_val)
-                with box4:
-                    st.compound_container = st.container()
-                    st.metric(label="💼 Compensation (CO)", value=co_val)
+                # Premium HTML Colorful Cards Grid (CRITICAL FIXED TO PREVENT METRICS ERROR)
+                st.markdown("#### 📊 Your Live Available Leave Balances")
+                col1, col2, col3, col4 = st.columns(4)
                 
-                # Leave Application Form
-                st.markdown('<div class="section-card" style="border-top-color: #ffb300;">', unsafe_allowed_html=True)
+                with col1:
+                    st.markdown(f'<div class="balance-card cl-box"><div class="balance-title">Casual Leave (CL)</div><div class="balance-number">{cl_val}</div></div>', unsafe_allowed_html=True)
+                with col2:
+                    st.markdown(f'<div class="balance-card sl-box"><div class="balance-title">Sick Leave</div><div class="balance-number">{sl_val}</div></div>', unsafe_allowed_html=True)
+                with col3:
+                    st.markdown(f'<div class="balance-card al-box"><div class="balance-title">Annual Leave</div><div class="balance-number">{al_val}</div></div>', unsafe_allowed_html=True)
+                with col4:
+                    st.markdown(f'<div class="balance-card co-box"><div class="balance-title">Compensation (CO)</div><div class="balance-number">{co_val}</div></div>', unsafe_allowed_html=True)
+                
+                st.markdown("<br>", unsafe_allowed_html=True)
+                
+                # Form Container
+                st.markdown('<div class="main-box" style="border-top-color: #ffb300;">', unsafe_allowed_html=True)
                 st.markdown("### 📝 Apply for Factory Leave")
                 leave_type = st.selectbox("Select Leave Type:", ["Casual Leave (CL)", "Sick Leave", "Annual Leave", "Compensation (CO)"])
                 leave_days = st.number_input("Number of Days Required:", min_value=1, max_value=30, value=1)
@@ -173,7 +181,6 @@ if access_role == "Worker":
                     current_balance = int(w_data.get(leave_key, 0))
                     
                     if current_balance >= leave_days:
-                        # Request logic: Balance remains untouched until admin approval
                         req_id = len(st.session_state.leave_requests) + 1
                         new_req = {
                             "id": req_id,
@@ -189,7 +196,7 @@ if access_role == "Worker":
                         st.success("✅ آپ کی چھٹی کی درخواست ایڈمن کو بھیج دی گئی ہے۔ ایڈمن کے اوکے (Approve) کرنے پر بیلنس کٹے گا۔")
                         st.rerun()
                     else:
-                        st.error("❌ Action Denied: Your requested days exceed your available leave balance!")
+                        st.error("❌ Action Denied: Requested days exceed your available balance!")
                 st.markdown('</div>', unsafe_allowed_html=True)
             else:
                 st.error("❌ Incorrect Identity Token (CNIC). Access Denied.")
@@ -200,11 +207,10 @@ if access_role == "Worker":
 # ==========================================
 else:
     st.markdown("### 🛠️ Admin Management Control Panel")
-    
     admin_tab, requests_tab = st.tabs(["👥 Manage Workers Profiles", "📥 Pending Leave Requests Queue"])
     
     with admin_tab:
-        st.markdown('<div class="section-card">', unsafe_allowed_html=True)
+        st.markdown('<div class="main-box">', unsafe_allowed_html=True)
         st.markdown("#### ➕ Register or Update Factory Worker Profile")
         
         col_inp1, col_inp2 = st.columns(2)
@@ -234,29 +240,29 @@ else:
                     "CO": int(c_co)
                 }
                 save_permanent_data()
-                st.success(f"💾 Profile for '{w_name}' has been successfully synced and locked!")
+                st.success(f"💾 Profile for '{w_name}' has been successfully saved and synced!")
                 st.rerun()
             else:
-                st.error("❌ Name and Identity Token (CNIC) are mandatory to register a profile.")
+                st.error("❌ Name and Identity Token (CNIC) are mandatory fields.")
         st.markdown('</div>', unsafe_allowed_html=True)
                 
-        # Delete/Remove Profiles
+        # Delete Profiles
         if st.session_state.workers_dict:
-            st.markdown('<div class="section-card" style="border-top-color: #d32f2f;">', unsafe_allowed_html=True)
+            st.markdown('<div class="main-box" style="border-top-color: #d32f2f;">', unsafe_allowed_html=True)
             st.markdown("#### 🗑️ Remove Worker Profile from System")
             worker_to_delete = st.selectbox("Select Target Worker to Remove:", ["Select Worker"] + list(st.session_state.workers_dict.keys()))
             if worker_to_delete != "Select Worker":
-                if st.button(f"Permanently Delete {worker_to_delete} & Clear Leave Records", use_container_width=True):
+                if st.button(f"Permanently Delete {worker_to_delete}", use_container_width=True):
                     del st.session_state.workers_dict[worker_to_delete]
                     st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["worker"] != worker_to_delete]
                     save_permanent_data()
-                    st.success(f"🗑️ Profile and records for '{worker_to_delete}' completely removed.")
+                    st.success(f"🗑️ Profile for '{worker_to_delete}' removed successfully.")
                     st.rerun()
             st.markdown('</div>', unsafe_allowed_html=True)
 
-        # View Master Sheet Data Matrix
+        # Database View
         if st.session_state.workers_dict:
-            st.markdown('<div class="section-card" style="border-top-color: #2e7d32;">', unsafe_allowed_html=True)
+            st.markdown('<div class="main-box" style="border-top-color: #2e7d32;">', unsafe_allowed_html=True)
             st.markdown("#### 📋 Company Master Sheet Database View")
             st.json(st.session_state.workers_dict)
             st.markdown('</div>', unsafe_allowed_html=True)
@@ -270,11 +276,11 @@ else:
         else:
             for req in pending_reqs:
                 st.markdown(f"""
-                <div class="leave-request-card">
-                    <span style="color:#0052cc; font-size:18px; font-weight:bold;">👤 Worker Name: {req['worker']}</span><br>
-                    <span style="color:#334155;"><b>Leave Type:</b> {req['leave_type']} | <b>Requested Duration:</b> <span style="color:#d32f2f; font-weight:bold;">{req['days']} Days</span></span><br>
-                    <span style="color:#334155;"><b>Date Applied:</b> {req['date']}</span><br>
-                    <span style="color:#475569; font-style: italic;"><b>Reason Statement:</b> "{req['reason']}"</span>
+                <div class="request-box">
+                    <span style="color:#0052cc; font-size:17px; font-weight:bold;">👤 Worker Name: {req['worker']}</span><br>
+                    <span style="color:#2c3e50;"><b>Leave Type:</b> {req['leave_type']} | <b>Requested Duration:</b> <span style="color:#d32f2f; font-weight:bold;">{req['days']} Days</span></span><br>
+                    <span style="color:#555;"><b>Date Applied:</b> {req['date']}</span><br>
+                    <span style="color:#444; font-style: italic;"><b>Reason:</b> "{req['reason']}"</span>
                 </div>
                 """, unsafe_allowed_html=True)
                 
@@ -289,16 +295,15 @@ else:
                         if w_name in st.session_state.workers_dict:
                             current_bal = int(st.session_state.workers_dict[w_name].get(l_key, 0))
                             if current_bal >= days_to_cut:
-                                # Deduct logic triggered ONLY here upon admin okay response
                                 st.session_state.workers_dict[w_name][l_key] -= days_to_cut
                                 req["status"] = "Approved"
                                 save_permanent_data()
-                                st.success(f"👍 Approved! {days_to_cut} days deducted from {w_name}'s balance.")
+                                st.success(f"👍 Approved! {days_to_cut} days deducted.")
                                 st.rerun()
                             else:
-                                st.error("❌ Cannot Approve: Worker does not have sufficient leave balance!")
+                                st.error("❌ Cannot Approve: Worker does not have sufficient balance!")
                         else:
-                            st.error("❌ Target profile no longer exists in system registry.")
+                            st.error("❌ Worker profile no longer exists.")
                 
                 with col_rej:
                     if st.button(f"❌ Reject / Cancel (ID: {req['id']})", key=f"rej_{req['id']}", use_container_width=True):
