@@ -7,7 +7,7 @@ import os
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
 DATA_FILE = "workers_db.json"
-ADMIN_PASSWORD = "admin123"  # آپ کی تصویر کے مطابق پاسورڈ اب 'admin123' سیٹ کر دیا ہے
+ADMIN_PASSWORD = "admin123"  # ایڈمن پورٹل کا سیکیورٹی پاسورڈ
 
 # Custom Professional Theme Injection
 st.html("""
@@ -192,8 +192,9 @@ else:
                     w_mobile = st.text_input("Mobile / WhatsApp Number:")
                     w_salary = st.text_input("Monthly Salary (Rs.):", value="0")
                 with col_p3:
-                    w_joining = st.date_input("Date of Joining Company:", value=date.today())
-                    w_end = st.date_input("Date of End (Contract End):", value=date.today())
+                    # کم سے کم تاریخ کی حد سال 1980 سیٹ کر دی ہے تاکہ لال رنگ نہ آئے
+                    w_joining = st.date_input("Date of Joining Company:", value=date.today(), min_value=date(1980, 1, 1))
+                    w_end = st.date_input("Date of End (Contract End):", value=date.today(), min_value=date(1980, 1, 1))
                     w_pass = st.text_input("Assign Worker Login Password:", type="password", value="1234")
                 
                 st.html("<h5>📊 Initial Leave Quota Allocation</h5>")
@@ -265,8 +266,9 @@ else:
                                 jd_obj = date.today()
                                 ed_obj = date.today()
                                 
-                            edit_joining = st.date_input("Joining Date:", value=jd_obj, key="edit_j_date")
-                            edit_end = st.date_input("Contract End Date:", value=ed_obj, key="edit_e_date")
+                            # یہاں min_value=date(1980, 1, 1) لگانے سے پرانی تاریخوں کا لال رنگ مستقل ختم ہو گیا ہے
+                            edit_joining = st.date_input("Joining Date:", value=jd_obj, min_value=date(1980, 1, 1), key="edit_j_date")
+                            edit_end = st.date_input("Contract End Date:", value=ed_obj, min_value=date(1980, 1, 1), key="edit_e_date")
                         
                         st.html("<h5>⚙️ Adjust Leave Quota Balances Manually</h5>")
                         col_eb1, col_eb2, col_eb3, col_eb4 = st.columns(4)
@@ -350,6 +352,4 @@ else:
                                 st.write(f"🔑 **Password:** {details.get('password', 'N/A')}")
                             
                             st.write("**Current Leave Balances Available:**")
-                            st.code(f"Casual (CL): {details.get('CL', 0)} Days | Sick: {details.get('Sick', 0)} Days | Annual: {details.get('Annual', 0)} Days | CO: {details.get('CO', 0)} Days")
-    elif admin_auth:
-        st.error("❌ ایڈمن پورٹل کا پاسورڈ غلط ہے۔")
+                            st.code(f"Casual (CL): {details.get('CL', 0)} Days | Sick: {details.get('Sick', 0)} Days | Annual: {details.get('Annual',
