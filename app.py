@@ -3,7 +3,7 @@ from datetime import datetime, date
 import json
 import os
 
-# Page Setup
+# Page Setup - یہاں ہم نے آفیشل طریقہ استعمال کیا ہے جو ایپ کو ائیرر نہیں دے گا
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
 DATA_FILE = "workers_data.json"
@@ -38,15 +38,15 @@ if "db_loaded" not in st.session_state:
     st.session_state.db_loaded = True
 
 # ==========================================
-# PREMIUM CORPORATE CONTAINER HEADER
+# OFFICIAL CORPORATE HEADER (SAFE METHOD)
 # ==========================================
-with st.container(border=True):
-    st.markdown("""
-        <div style="background-color: #1e3a8a; padding: 24px; border-radius: 8px; text-align: center; margin-bottom: 10px;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-family: 'Arial Black', sans-serif; letter-spacing: 1px;">🏭 INSTAPLAST PVT LTD</h1>
-            <p style="color: #e2e8f0; margin: 8px 0 0 0; font-size: 16px; font-weight: 500;">Time Management & Leave Allocation System</p>
-        </div>
-    """, unsafe_allowed_html=True)
+# یہ بالکل محفوظ طریقہ ہے جو ایپ کو کریش کیے بغیر خوبصورت نیلے رنگ کا بڑا ہیڈر بینر بنائے گا
+st.html("""
+    <div style="background-color: #1e3a8a; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 25px; border-left: 8px solid #e0a924;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 36px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: bold; letter-spacing: 1px;">🏭 INSTAPLAST PVT LTD</h1>
+        <p style="color: #f1f5f9; margin: 10px 0 0 0; font-size: 18px; font-weight: 500; opacity: 0.95;">Time Management & Leave Allocation System</p>
+    </div>
+""")
 
 # Sidebar Control
 st.sidebar.title("🔒 Gate Panel")
@@ -142,10 +142,10 @@ else:
                 w_mobile = st.text_input("Mobile / WhatsApp Number:")
                 w_joining = st.date_input("Date of Joining Company:", value=date.today())
             
-            # یہاں سے پرانے لیو بیلنس کے فیلڈز ہٹا دیے گئے ہیں، ورکر رجسٹر ہوتے ہی ڈیفالٹ کوٹہ خود مل جائے گا
+            # یہاں آپ کی ڈیمانڈ کے مطابق ان پٹ فیلڈز مکمل غائب کر دی گئی ہیں
             if st.button("Save Profile & Commit Registry", use_container_width=True):
                 if w_name and w_cnic:
-                    # نئے ورکر کو سسٹم خودکار طور پر فکسڈ بیلنس الاٹ کر دے گا
+                    # بیک اینڈ پر آٹومیٹک ڈیفالٹ کوٹہ الاٹ ہو جائے گا
                     st.session_state.workers_dict[w_name] = {
                         "cnic": w_cnic,
                         "mobile": w_mobile,
