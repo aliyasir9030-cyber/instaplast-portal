@@ -353,4 +353,6 @@ else:
                             
                             st.write("**Current Leave Balances Available:**")
                             # بریکٹ فکس کر دیا گیا ہے تاکہ SyntaxError نہ آئے
-                            st.code(f"Casual (CL): {details.get('CL', 0
+                            st.code(f"Casual (CL): {details.get('CL', 0)} Days | Sick: {details.get('Sick', 0)} Days | Annual: {details.get('Annual', 0)} Days | CO: {details.get('CO', 0)} Days")
+    elif admin_auth:
+        st.error("❌ ایڈمن پورٹل کا پاسورڈ غلط ہے۔")
