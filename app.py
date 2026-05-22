@@ -93,10 +93,10 @@ def display_worker_photo(base64_str):
 lang_col1, lang_col2 = st.columns([4, 1])
 with lang_col1:
     st.html("""
-        <div style="background-color: #1e3a8a; padding: 20px; border-radius: 12px; text-align: center; border-left: 8px solid #e0a924;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 30px; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold;">🏭 INSTAPLAST PVT LTD</h1>
-            <p style="color: #f1f5f9; margin: 5px 0 0 0; font-size: 15px;">Time Management & Leave Allocation System</p>
+        <div style="background-color: #1e3a8a; padding: 25px 20px; border-radius: 12px; text-align: center; border-left: 8px solid #e0a924; display: flex; align-items: center; justify-content: center; gap: 15px;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 30px; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; line-height: 1.2;">🏭 INSTAPLAST PVT LTD</h1>
         </div>
+        <p style="color: #1e3a8a; margin: 8px 0 15px 0; font-size: 16px; font-weight: 600; text-align: center;">Time Management & Leave Allocation System</p>
     """)
 with lang_col2:
     st.write("")
@@ -123,10 +123,9 @@ access_role = st.sidebar.selectbox("Select Access Role:" if not is_urdu else "ر
 st.sidebar.divider()
 st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v15.0")
 
-# Translate Access Role back to standard for internal logic
 is_admin_mode = "Admin" in access_role
 
-# Helper function to display active button information inside worker/admin view
+# Helper function for details subtabs
 def render_profile_subdata(w_name, data, unique_key):
     st.write("---")
     st.markdown("### 📋 Detailed Profile Modules" if not is_urdu else "### 📋 پروفائل کی تفصیلات")
@@ -213,7 +212,6 @@ if not is_admin_mode:
     else:
         # Check persistent login state for worker
         if st.session_state.logged_in_user is None:
-            # Show Login Form if not logged in
             worker_list = list(st.session_state.workers_dict.keys())
             col_sel1, col_sel2 = st.columns(2)
             
@@ -230,11 +228,9 @@ if not is_admin_mode:
                 else:
                     st.error("❌ Incorrect Password. Please enter your correct CNIC number." if not is_urdu else "❌ پاسورڈ غلط ہے۔ براہ کرم صحیح شناختی کارڈ نمبر درج کریں۔")
         else:
-            # Worker is securely logged in - persistent view
             current_worker = st.session_state.logged_in_user
             w_data = st.session_state.workers_dict[current_worker]
             
-            # Header Row with Welcome message and dynamic Log Out Button
             l_out1, l_out2 = st.columns([3, 1])
             with l_out1:
                 msg = f"🔓 Logged In Status: Active Session for '{current_worker}'" if not is_urdu else f"🔓 لاگ ان کی صورتحال: '{current_worker}' کا اکاؤنٹ کھلا ہے"
@@ -312,7 +308,6 @@ else:
             else:
                 st.error("❌ Incorrect Password.")
     else:
-        # Admin is logged in securely - persistent operations panel
         adm_row1, adm_row2 = st.columns([3, 1])
         with adm_row1:
             st.success("🔓 Authorized Access Status: Live Session Open")
@@ -431,7 +426,7 @@ else:
                                     save_local_database()  
                                     st.rerun()
 
-            # TAB 4: COMPLETE SHEETS RECORD WITH SEARCH BAR
+            # TAB 4: COMPLETE SHEETS RECORD
             with records_tab:
                 st.html("<h4>📊 Factory Workers Sheets & Search Panel</h4>")
                 search_query = st.text_input("🔍 Search Worker by Name, ID or Department:", "", key="adm_search").lower()
