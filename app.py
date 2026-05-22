@@ -10,7 +10,7 @@ st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layou
 ADMIN_PASSWORD = "admin123"  
 DB_FILE = "database.json"
 
-# --- AUTOMATIC DATA STORAGE LOGIC ---
+# --- AUTOMATIC DATA STORAGE & PERSISTENT LOGIN LOGIC ---
 def load_local_database():
     if os.path.exists(DB_FILE):
         try:
@@ -18,6 +18,12 @@ def load_local_database():
                 data = json.load(f)
                 st.session_state.workers_dict = data.get("workers", {})
                 st.session_state.leave_requests = data.get("requests", [])
+                
+                # ہارڈ ڈسک سے پرانا لاگ ان سیشن بحال کرنے کے لیے
+                if "logged_in_user" not in st.session_state:
+                    st.session_state.logged_in_user = data.get("active_worker_session", None)
+                if "admin_authenticated" not in st.session_state:
+                    st.session_state.admin_authenticated = data.get("active_admin_session", False)
                 return
         except Exception as e:
             pass
@@ -26,11 +32,18 @@ def load_local_database():
         st.session_state.workers_dict = {}
     if "leave_requests" not in st.session_state:
         st.session_state.leave_requests = []
+    if "logged_in_user" not in st.session_state:
+        st.session_state.logged_in_user = None
+    if "admin_authenticated" not in st.session_state:
+        st.session_state.admin_authenticated = False
 
 def save_local_database():
     db_export = {
         "workers": st.session_state.workers_dict,
-        "requests": st.session_state.leave_requests
+        "requests": st.session_state.leave_requests,
+        # لاگ ان کی صورتحال کو پرماننٹ فائل میں سیو کرنے کے لیے
+        "active_worker_session": st.session_state.get("logged_in_user", None),
+        "active_admin_session": st.session_state.get("admin_authenticated", False)
     }
     try:
         with open(DB_FILE, "w") as f:
@@ -38,21 +51,15 @@ def save_local_database():
     except Exception as e:
         st.error(f"Error saving data: {e}")
 
-# Load database automatically
+# Load database and sync state automatically
 load_local_database()
 
-# --- PERSISTENT LOGIN & LANGUAGE STATES ---
-if "logged_in_user" not in st.session_state:
-    st.session_state.logged_in_user = None  
-if "admin_authenticated" not in st.session_state:
-    st.session_state.admin_authenticated = False  
 if "lang" not in st.session_state:
     st.session_state.lang = "English"
 
 # Custom CSS for Professional UI and Fixing Logo Cutting Issue
 st.html("""
 <style>
-    /* Streamlit کے فالتو اوپر والے مارجن کو ختم کرنے کے لیے */
     [data-testid="stHeader"] {
         display: none !important;
     }
@@ -123,8 +130,7 @@ is_urdu = (st.session_state.lang == "Urdu")
 # Sidebar Navigation Control
 st.sidebar.title("🔒 Gate Panel" if not is_urdu else "🔒 گیٹ پینل")
 def on_role_change():
-    st.session_state.admin_authenticated = False
-    st.session_state.logged_in_user = None
+    pass
 
 role_options = ["Worker", "Admin Portal"] if not is_urdu else ["ورکر پورٹل (Worker)", "ایڈمن پورٹل (Admin)"]
 access_role = st.sidebar.selectbox("Select Access Role:" if not is_urdu else "رسائی کا طریقہ منتخب کریں:", role_options, on_change=on_role_change)
@@ -218,7 +224,7 @@ if not is_admin_mode:
     if not st.session_state.workers_dict:
         st.warning("⚠️ No worker profiles found in the system database. Please switch to Admin Portal." if not is_urdu else "⚠️ سسٹم میں کوئی ورکر موجود نہیں ہے۔ براہ کرم ایڈمن پورٹل سے ورکر رجسٹر کریں۔")
     else:
-        # Check persistent login state for worker
+        # Check if worker is logged in securely
         if st.session_state.logged_in_user is None:
             worker_list = list(st.session_state.workers_dict.keys())
             col_sel1, col_sel2 = st.columns(2)
@@ -232,11 +238,20 @@ if not is_admin_mode:
                 w_data = st.session_state.workers_dict[selected_worker]
                 if str(password_input).strip() == str(w_data.get("cnic", "")).strip():
                     st.session_state.logged_in_user = selected_worker
+                    save_local_database()  # ڈیٹا بیس فائل میں لاگ ان سٹیٹ سیو کریں
+                    st.success("✅ Logged in successfully!")
                     st.rerun()
                 else:
                     st.error("❌ Incorrect Password. Please enter your correct CNIC number." if not is_urdu else "❌ پاسورڈ غلط ہے۔ براہ کرم صحیح شناختی کارڈ نمبر درج کریں۔")
         else:
             current_worker = st.session_state.logged_in_user
+            
+            # اگر ورکر لسٹ سے وہ نام ڈیلیٹ ہو چکا ہو تو سیشن کلیئر کریں
+            if current_worker not in st.session_state.workers_dict:
+                st.session_state.logged_in_user = None
+                save_local_database()
+                st.rerun()
+                
             w_data = st.session_state.workers_dict[current_worker]
             
             l_out1, l_out2 = st.columns([3, 1])
@@ -247,6 +262,7 @@ if not is_admin_mode:
                 btn_lbl = "🚪 Log Out of System" if not is_urdu else "🚪 اکاؤنٹ لاگ آؤٹ کریں"
                 if st.button(btn_lbl, use_container_width=True):
                     st.session_state.logged_in_user = None
+                    save_local_database()  # لاگ آؤٹ کی سٹیٹ کو فائل میں سیو کریں
                     st.rerun()
                     
             st.divider()
@@ -306,12 +322,12 @@ if not is_admin_mode:
 else:
     st.html("<h2 class='section-title'>🛠️ Admin Management Control Panel</h2>")
     
-    # Check persistent login state for admin
     if not st.session_state.admin_authenticated:
         admin_auth = st.text_input("Enter Admin Security Password:", type="password")
         if st.button("🔒 Verify Admin Access", use_container_width=True):
             if admin_auth == ADMIN_PASSWORD:
                 st.session_state.admin_authenticated = True
+                save_local_database()
                 st.rerun()
             else:
                 st.error("❌ Incorrect Password.")
@@ -322,6 +338,7 @@ else:
         with adm_row2:
             if st.button("🚪 Lock Admin Panel (Log Out)", use_container_width=True):
                 st.session_state.admin_authenticated = False
+                save_local_database()
                 st.rerun()
                 
         st.divider()
