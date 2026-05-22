@@ -1,13 +1,54 @@
 import streamlit as st
 from datetime import datetime, date, timedelta
-import pandas as pd
 import base64
 import json
+import os
 
 # Page Setup
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
 ADMIN_PASSWORD = "admin123"  
+DB_FILE = "database.json"
+
+# --- AUTOMATIC DATA STORAGE LOGIC ---
+def load_local_database():
+    """Reads stored factory data automatically on startup"""
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r") as f:
+                data = json.load(f)
+                st.session_state.workers_dict = data.get("workers", {})
+                st.session_state.leave_requests = data.get("requests", [])
+                return
+        except Exception as e:
+            pass
+    
+    # Default initialization if file doesn't exist
+    if "workers_dict" not in st.session_state:
+        st.session_state.workers_dict = {}
+    if "leave_requests" not in st.session_state:
+        st.session_state.leave_requests = []
+
+def save_local_database():
+    """Saves data instantly to database.json whenever a change occurs"""
+    db_export = {
+        "workers": st.session_state.workers_dict,
+        "requests": st.session_state.leave_requests
+    }
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(db_export, f, indent=4)
+    except Exception as e:
+        st.error(f"Error saving data automatically: {e}")
+
+# Initialize and pull database automatically
+load_local_database()
+
+# Initialize Login Session States if not present
+if "logged_in_user" not in st.session_state:
+    st.session_state.logged_in_user = None  # Stores the name of logged-in worker
+if "admin_authenticated" not in st.session_state:
+    st.session_state.admin_authenticated = False  # Track admin login status
 
 # Custom Professional Theme Injection
 st.html("""
@@ -21,22 +62,6 @@ st.html("""
         padding-bottom: 5px;
         margin-bottom: 15px;
     }
-    .profile-card {
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        color: white;
-        font-family: 'Segoe UI', sans-serif;
-    }
-    .c-personal { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-    .c-job { background: linear-gradient(135deg, #10b981, #047857); }
-    .c-time { background: linear-gradient(135deg, #f59e0b, #b45309); }
-    .c-benefit { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
-    .c-payroll { background: linear-gradient(135deg, #ec4899, #be185d); }
-    
-    .card-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-    .card-content { font-size: 14px; opacity: 0.95; line-height: 1.6; }
-    
     .data-box {
         border-radius: 8px;
         padding: 20px;
@@ -60,12 +85,6 @@ def display_worker_photo(base64_str):
     else:
         st.markdown('<div style="width:130px; height:130px; border-radius:50%; background-color:#e2e8f0; border:3px dashed #cbd5e1; display:flex; align-items:center; justify-content:center; margin-left:auto; margin-right:auto; margin-bottom:15px; color:#64748b; font-weight:bold;">No Photo</div>', unsafe_allow_html=True)
 
-# Session state initialization
-if "workers_dict" not in st.session_state:
-    st.session_state.workers_dict = {}
-if "leave_requests" not in st.session_state:
-    st.session_state.leave_requests = []
-
 # Corporate Banner Display
 st.html("""
     <div style="background-color: #1e3a8a; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 25px; border-left: 8px solid #e0a924;">
@@ -76,9 +95,15 @@ st.html("""
 
 # Sidebar Navigation Control
 st.sidebar.title("🔒 Gate Panel")
-access_role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin Portal"])
+
+# Force logout dynamic action if role changes
+def on_role_change():
+    st.session_state.admin_authenticated = False
+    st.session_state.logged_in_user = None
+
+access_role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin Portal"], on_change=on_role_change)
 st.sidebar.divider()
-st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v14.0")
+st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v15.0")
 
 # Helper function to display active button information inside worker/admin view
 def render_profile_subdata(w_name, data, unique_key):
@@ -121,7 +146,7 @@ def render_profile_subdata(w_name, data, unique_key):
         <div class="data-box" style="border-left: 5px solid #10b981;">
             <h4 style="color:#047857;">💼 Job Data Record</h4>
             <p><b>Worker Registry ID:</b> {data.get('id', 'N/A')}</p>
-            <p><b>Department Name:</b> {data.get('department', 'General Operation')}</p>
+            <p><b>Department Name:</b> {data.get('department', 'STORE')}</p>
             <p><b>Official Date of Joining:</b> {data.get('joining_date', 'N/A')}</p>
             <p><b>Date of End (Contract End):</b> {data.get('end_date', 'N/A')}</p>
             <p><b>Current Status:</b> Active Employee</p>
@@ -164,110 +189,114 @@ if access_role == "Worker":
     st.html("<h2 class='section-title'>👤 Employee Identity Verification & Leave Application</h2>")
     
     if not st.session_state.workers_dict:
-        st.warning("⚠️ No worker profiles found in the system database. Please switch to Admin Portal to add or restore worker profiles.")
+        st.warning("⚠️ No worker profiles found in the system database. Please switch to Admin Portal to register profiles.")
     else:
-        worker_list = list(st.session_state.workers_dict.keys())
-        
-        col_sel1, col_sel2 = st.columns(2)
-        with col_sel1: 
-            selected_worker = st.selectbox("Select Profile Name:", worker_list)
-        with col_sel2: 
-            password_input = st.text_input("Enter Password (Your CNIC Number):", type="password")
+        # Check persistent login state for worker
+        if st.session_state.logged_in_user is None:
+            # Show Login Form if not logged in
+            worker_list = list(st.session_state.workers_dict.keys())
+            col_sel1, col_sel2 = st.columns(2)
             
-        if password_input:
-            w_data = st.session_state.workers_dict[selected_worker]
-            saved_cnic = str(w_data.get("cnic", "")).strip()
+            with col_sel1: 
+                selected_worker = st.selectbox("Select Profile Name:", worker_list)
+            with col_sel2: 
+                password_input = st.text_input("Enter Password (Your CNIC Number):", type="password")
+                
+            if st.button("🔒 Secure Login", use_container_width=True):
+                w_data = st.session_state.workers_dict[selected_worker]
+                if str(password_input).strip() == str(w_data.get("cnic", "")).strip():
+                    st.session_state.logged_in_user = selected_worker
+                    st.rerun()
+                else:
+                    st.error("❌ Incorrect Password. Please enter your correct CNIC number.")
+        else:
+            # Worker is securely logged in - persistent view
+            current_worker = st.session_state.logged_in_user
+            w_data = st.session_state.workers_dict[current_worker]
             
-            if str(password_input).strip() == saved_cnic:
-                st.success(f"🔓 Welcome, {selected_worker}!")
-                st.divider()
-                
-                st.html("<h3 class='section-title'>📊 Your Live Progress Dashboard</h3>")
-                cl_val, sl_val = int(w_data.get("CL", 0)), int(w_data.get("Sick", 0))
-                al_val, co_val = int(w_data.get("Annual", 0)), int(w_data.get("CO", 0))
-                
-                col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-                with col_c1: st.metric(label="🟢 Casual Leave (CL)", value=f"{cl_val} Days")
-                with col_c2: st.metric(label="🟠 Sick Leave (SL)", value=f"{sl_val} Days")
-                with col_c3: st.metric(label="🔵 Annual Leave (AL)", value=f"{al_val} Days")
-                with col_c4: st.metric(label="🔴 Compensation (CO)", value=f"{co_val} Days")
-                
-                col_left_form, col_right_profile = st.columns([1.1, 0.9])
-                
-                with col_left_form:
-                    st.html("### 📝 Leave Application Form")
-                    leave_type = st.selectbox("Select Leave Type:", ["Casual Leave (CL)", "Sick Leave (SL)", "Annual Leave (AL)", "Compensation (CO)"])
-                    col_d1, col_d2 = st.columns(2)
-                    with col_d1: date_from = st.date_input("Leave From:", value=date.today())
-                    with col_d2: date_to = st.date_input("Leave To:", value=date.today())
+            # Header Row with Welcome message and dynamic Log Out Button
+            l_out1, l_out2 = st.columns([3, 1])
+            with l_out1:
+                st.success(f"🔓 Logged In Status: Active Session for '{current_worker}'")
+            with l_out2:
+                if st.button("🚪 Log Out of System", use_container_width=True):
+                    st.session_state.logged_in_user = None
+                    st.rerun()
                     
-                    leave_days = st.number_input("Number of Days Required:", min_value=1, max_value=30, value=1)
-                    reason = st.text_area("State Reason for Leave:")
-                    
-                    if st.button("Apply Now (Submit Request)", use_container_width=True):
-                        leave_key = "CL" if "Casual" in leave_type else "Sick" if "(SL)" in leave_type else "Annual" if "(AL)" in leave_type else "CO"
-                        if int(w_data.get(leave_key, 0)) >= leave_days:
-                            new_req = {
-                                "id": len(st.session_state.leave_requests) + 1,
-                                "worker": selected_worker, "leave_type": leave_key, "days": leave_days,
-                                "date_from": str(date_from), "date_to": str(date_to), "reason": reason,
-                                "applied_on": str(date.today()), "status": "Pending"
-                            }
-                            st.session_state.leave_requests.append(new_req)
-                            st.success("✅ Application submitted successfully! Please ask Admin to download data backup.")
-                            st.rerun()
-                        else:
-                            st.error("❌ Request Rejected: Insufficient leave balance!")
-                            
-                with col_right_profile:
-                    st.html("### 🌟 Worker Corporate Profile")
-                    display_worker_photo(w_data.get("photo"))
-                    st.write(f"👤 **Name:** {selected_worker}")
-                    st.write(f"🏭 **Department:** {w_data.get('department', 'General Operation')}")
-                    st.write(f"🆔 **ID:** {w_data.get('id', 'N/A')}")
-                    
-                    render_profile_subdata(selected_worker, w_data, "worker_view")
-            else:
-                st.error("❌ Incorrect Password. Please enter your correct CNIC number.")
+            st.divider()
+            
+            st.html("<h3 class='section-title'>📊 Your Live Progress Dashboard</h3>")
+            cl_val, sl_val = int(w_data.get("CL", 0)), int(w_data.get("Sick", 0))
+            al_val, co_val = int(w_data.get("Annual", 0)), int(w_data.get("CO", 0))
+            
+            col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+            with col_c1: st.metric(label="🟢 Casual Leave (CL)", value=f"{cl_val} Days")
+            with col_c2: st.metric(label="🟠 Sick Leave (SL)", value=f"{sl_val} Days")
+            with col_c3: st.metric(label="🔵 Annual Leave (AL)", value=f"{al_val} Days")
+            with col_c4: st.metric(label="🔴 Compensation (CO)", value=f"{co_val} Days")
+            
+            col_left_form, col_right_profile = st.columns([1.1, 0.9])
+            
+            with col_left_form:
+                st.html("### 📝 Leave Application Form")
+                leave_type = st.selectbox("Select Leave Type:", ["Casual Leave (CL)", "Sick Leave (SL)", "Annual Leave (AL)", "Compensation (CO)"])
+                col_d1, col_d2 = st.columns(2)
+                with col_d1: date_from = st.date_input("Leave From:", value=date.today())
+                with col_d2: date_to = st.date_input("Leave To:", value=date.today())
+                
+                leave_days = st.number_input("Number of Days Required:", min_value=1, max_value=30, value=1)
+                reason = st.text_area("State Reason for Leave:")
+                
+                if st.button("Apply Now (Submit Request)", use_container_width=True):
+                    leave_key = "CL" if "Casual" in leave_type else "Sick" if "(SL)" in leave_type else "Annual" if "(AL)" in leave_type else "CO"
+                    if int(w_data.get(leave_key, 0)) >= leave_days:
+                        new_req = {
+                            "id": len(st.session_state.leave_requests) + 1,
+                            "worker": current_worker, "leave_type": leave_key, "days": leave_days,
+                            "date_from": str(date_from), "date_to": str(date_to), "reason": reason,
+                            "applied_on": str(date.today()), "status": "Pending"
+                        }
+                        st.session_state.leave_requests.append(new_req)
+                        save_local_database()  # Auto-save changes instantly
+                        st.success("✅ Application submitted and saved automatically into database file!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Request Rejected: Insufficient leave balance!")
+                        
+            with col_right_profile:
+                st.html("### 🌟 Worker Corporate Profile")
+                display_worker_photo(w_data.get("photo"))
+                st.write(f"👤 **Name:** {current_worker}")
+                st.write(f"🏭 **Department:** {w_data.get('department', 'STORE')}")
+                st.write(f"🆔 **ID:** {w_data.get('id', 'N/A')}")
+                
+                render_profile_subdata(current_worker, w_data, "worker_view")
 
 # ==========================================
 # ADMIN PORTAL INTERFACE
 # ==========================================
 else:
     st.html("<h2 class='section-title'>🛠️ Admin Management Control Panel</h2>")
-    admin_auth = st.text_input("Enter Admin Security Password:", type="password")
     
-    if admin_auth == ADMIN_PASSWORD:
-        st.success("🔓 Admin Access Authorized")
-        
-        st.html("<h3>💾 Backup & Recovery Management</h3>")
-        col_b1, col_b2 = st.columns(2)
-        
-        with col_b1:
-            db_export = {
-                "workers": st.session_state.workers_dict,
-                "requests": st.session_state.leave_requests
-            }
-            json_string = json.dumps(db_export, indent=4)
-            st.download_button(
-                label="📥 Download Database Backup File (Save before closing)",
-                data=json_string,
-                file_name=f"instaplast_backup_{date.today()}.json",
-                mime="application/json",
-                use_container_width=True
-            )
-            
-        with col_b2:
-            uploaded_backup = st.file_uploader("📤 Upload Backup File (Restore database if empty):", type=["json"])
-            if uploaded_backup is not None:
-                try:
-                    backup_data = json.load(uploaded_backup)
-                    st.session_state.workers_dict = backup_data.get("workers", {})
-                    st.session_state.leave_requests = backup_data.get("requests", [])
-                    st.success("🎯 Success! Entire data registry has been restored successfully.")
-                except Exception as e:
-                    st.error(f"Error importing backup file: {e}")
-
+    # Check persistent login state for admin
+    if not st.session_state.admin_authenticated:
+        admin_auth = st.text_input("Enter Admin Security Password:", type="password")
+        if st.button("🔒 Verify Admin Access", use_container_width=True):
+            if admin_auth == ADMIN_PASSWORD:
+                st.session_state.admin_authenticated = True
+                st.rerun()
+            else:
+                st.error("❌ Incorrect Password.")
+    else:
+        # Admin is logged in securely - persistent operations panel
+        adm_row1, adm_row2 = st.columns([3, 1])
+        with adm_row1:
+            st.success("🔓 Authorized Access Status: Live Session Open")
+        with adm_row2:
+            if st.button("🚪 Lock Admin Panel (Log Out)", use_container_width=True):
+                st.session_state.admin_authenticated = False
+                st.rerun()
+                
         st.divider()
 
         with st.container(border=True):
@@ -288,10 +317,8 @@ else:
                     w_mobile = st.text_input("Mobile / WhatsApp Number:")
                     w_salary = st.text_input("Monthly Salary (Rs.):", value="0")
                 with col_p3:
-                    w_dept = st.text_input("Department Name (e.g., Production, Accounts, Store):", value="STORE")
+                    w_dept = st.text_input("Department Name (e.g., Production, Store):", value="STORE")
                     w_joining = st.date_input("Date of Joining Company:", value=date.today(), min_value=date(1980,1,1))
-                    
-                    # 🎯 MANUAL END DATE SELECTION (Defaults to 1 year ahead instead of matching joining date exactly)
                     w_end = st.date_input("Date of End (Contract End):", value=date.today() + timedelta(days=365), min_value=date(1980,1,1))
                     w_photo = st.file_uploader("Upload Worker Photo:", type=["jpg", "jpeg", "png"])
                 
@@ -311,7 +338,8 @@ else:
                             "department": w_dept, "password": w_cnic, "photo": photo_b64, 
                             "CL": cl_q, "Sick": sl_q, "Annual": al_q, "CO": co_q
                         }
-                        st.success(f"💾 Profile for '{w_name}' saved! Please download backup above.")
+                        save_local_database()  # Auto-save instantly
+                        st.success(f"💾 Profile for '{w_name}' saved permanently into system storage file!")
                         st.rerun()
 
             # TAB 2: EDIT PROFILES
@@ -322,7 +350,6 @@ else:
                     if edit_worker_name != "Select Worker":
                         current_w_data = st.session_state.workers_dict[edit_worker_name]
                         
-                        # Parsing saved end_date back safely
                         try: saved_end_dt = datetime.strptime(current_w_data.get("end_date", str(date.today())), '%Y-%m-%d').date()
                         except: saved_end_dt = date.today()
                             
@@ -337,8 +364,6 @@ else:
                             edit_salary = st.text_input("Monthly Salary:", value=current_w_data.get("salary", "0"))
                         with col_e3:
                             edit_joining = st.date_input("Joining Date:", value=datetime.strptime(current_w_data.get("joining_date", str(date.today())), '%Y-%m-%d').date(), min_value=date(1980,1,1), key="ed_j")
-                            
-                            # 🎯 MANUAL SELECTION DURING AUDIT/EDIT
                             edit_end = st.date_input("Date of End (Contract End):", value=saved_end_dt, min_value=date(1980,1,1), key="ed_e")
                             edit_photo = st.file_uploader("Update New Photo (Optional):", type=["jpg", "png"])
                         
@@ -356,7 +381,8 @@ else:
                                 "department": edit_dept, "password": edit_cnic, "photo": photo_str, 
                                 "CL": edit_cl, "Sick": edit_sl, "Annual": edit_al, "CO": edit_co
                             }
-                            st.success("✅ Profile updated temporarily. Make sure to download backup.")
+                            save_local_database()  # Auto-save changes instantly
+                            st.success("✅ Changes saved and data file auto-updated successfully.")
                             st.rerun()
 
             # TAB 3: LEAVE REQUESTS QUEUE
@@ -373,10 +399,12 @@ else:
                                 if st.button("✅ Approve Request", key=f"app_{req['id']}", use_container_width=True):
                                     st.session_state.workers_dict[req['worker']][req['leave_type']] -= int(req['days'])
                                     req["status"] = "Approved"
+                                    save_local_database()  # Auto-save changes instantly
                                     st.rerun()
                             with col_rej:
                                 if st.button("❌ Reject Request", key=f"rej_{req['id']}", use_container_width=True):
                                     req["status"] = "Rejected"
+                                    save_local_database()  # Auto-save changes instantly
                                     st.rerun()
 
             # TAB 4: COMPLETE SHEETS RECORD WITH SEARCH BAR
@@ -401,7 +429,7 @@ else:
                                     st.write(f"🆔 **CNIC / Password:** {details.get('cnic', 'N/A')}")
                                     st.write(f"📱 **Mobile:** {details.get('mobile', 'N/A')}")
                                 with col_v3:
-                                    st.write(f"🏢 **Department:** {details.get('department', 'General Operation')}")
+                                    st.write(f"🏢 **Department:** {details.get('department', 'STORE')}")
                                     st.write(f"📅 **Date of Joining:** {details.get('joining_date', 'N/A')}")
                                     st.write(f"⏳ **Date of End:** {details.get('end_date', 'N/A')}")
                                     st.write(f"💰 **Monthly Salary:** Rs. {details.get('salary', '0')}/-")
