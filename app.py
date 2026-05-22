@@ -36,6 +36,15 @@ st.html("""
     
     .card-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
     .card-content { font-size: 14px; opacity: 0.95; line-height: 1.6; }
+    
+    /* Interactive Button styling to match your tabs layout */
+    .data-box {
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 15px;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
 </style>
 """)
 
@@ -72,6 +81,92 @@ access_role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin Port
 st.sidebar.divider()
 st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v14.0")
 
+# Helper function to display active button information inside worker/admin view
+def render_profile_subdata(w_name, data, unique_key):
+    st.write("---")
+    st.markdown("### 📋 Detailed Profile Modules")
+    
+    # 5 Colorful Column Buttons matching your exact display
+    cb1, cb2, cb3, cb4, cb5 = st.columns(5)
+    
+    with cb1:
+        btn_personal = st.button("👤 Personal Data", key=f"btn_p_{unique_key}", use_container_width=True)
+    with cb2:
+        btn_job = st.button("💼 Job Data", key=f"btn_j_{unique_key}", use_container_width=True)
+    with cb3:
+        btn_time = st.button("⏱️ Time Management", key=f"btn_t_{unique_key}", use_container_width=True)
+    with cb4:
+        btn_benefit = st.button("🎁 Benefit & Goals", key=f"btn_b_{unique_key}", use_container_width=True)
+    with cb5:
+        btn_payroll = st.button("💰 Payroll & Comp.", key=f"btn_pay_{unique_key}", use_container_width=True)
+
+    # Initialize button state persistence if not present
+    state_key = f"active_tab_{unique_key}"
+    if state_key not in st.session_state:
+        st.session_state[state_key] = "Personal Data"
+
+    # Set state based on click
+    if btn_personal: st.session_state[state_key] = "Personal Data"
+    if btn_job: st.session_state[state_key] = "Job Data"
+    if btn_time: st.session_state[state_key] = "Time Management"
+    if btn_benefit: st.session_state[state_key] = "Benefit"
+    if btn_payroll: st.session_state[state_key] = "Payroll"
+
+    # Render data box based on the active selection
+    active = st.session_state[state_key]
+    
+    if active == "Personal Data":
+        st.markdown(f"""
+        <div class="data-box" style="border-left: 5px solid #3b82f6;">
+            <h4 style="color:#1d4ed8;">👤 Personal Data Record</h4>
+            <p><b>Full Name:</b> {w_name}</p>
+            <p><b>Father's Name:</b> {data.get('father_name', 'N/A')}</p>
+            <p><b>CNIC Number (System Password):</b> {data.get('cnic', 'N/A')}</p>
+            <p><b>Mobile / WhatsApp:</b> {data.get('mobile', 'N/A')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    elif active == "Job Data":
+        st.markdown(f"""
+        <div class="data-box" style="border-left: 5px solid #10b981;">
+            <h4 style="color:#047857;">💼 Job Data Record</h4>
+            <p><b>Worker Registry ID:</b> {data.get('id', 'N/A')}</p>
+            <p><b>Official Date of Joining:</b> {data.get('joining_date', 'N/A')}</p>
+            <p><b>Contract Expiry/End Date:</b> {data.get('end_date', 'N/A')}</p>
+            <p><b>Current Status:</b> Active Employee</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    elif active == "Time Management":
+        st.markdown(f"""
+        <div class="data-box" style="border-left: 5px solid #f59e0b;">
+            <h4 style="color:#b45309;">⏱️ Time Management & Attendance</h4>
+            <p><b>Assigned Shift:</b> General Factory Shift</p>
+            <p><b>Standard Shift Timings:</b> 08:00 AM - 05:00 PM</p>
+            <p><b>Total Approved Leave Balance:</b> {int(data.get('CL', 0)) + int(data.get('Sick', 0)) + int(data.get('Annual', 0)) + int(data.get('CO', 0))} Days</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    elif active == "Benefit":
+        st.markdown(f"""
+        <div class="data-box" style="border-left: 5px solid #8b5cf6;">
+            <h4 style="color:#6d28d9;">🎁 Benefits, Performance & Goals</h4>
+            <p><b>Performance Status:</b> {data.get('performance', 'Good Standing')}</p>
+            <p><b>Succession Planning:</b> Eligible for Senior Operator Track</p>
+            <p><b>Medical Cover Benefits:</b> Included (Standard Factory Grade Package)</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    elif active == "Payroll":
+        st.markdown(f"""
+        <div class="data-box" style="border-left: 5px solid #ec4899;">
+            <h4 style="color:#be185d;">💰 Payroll & Compensation</h4>
+            <p><b>Basic Monthly Salary:</b> Rs. {data.get('salary', '0')}/-</p>
+            <p><b>Compensation Leave (CO) Allotment:</b> {data.get('CO', 0)} Days</p>
+            <p><b>Payment Channel:</b> Direct Accounts Department Transfer</p>
+        </div>
+        """, unsafe_allow_html=True)
+
 # ==========================================
 # WORKER PORTAL INTERFACE
 # ==========================================
@@ -79,20 +174,22 @@ if access_role == "Worker":
     st.html("<h2 class='section-title'>👤 Employee Identity Verification & Leave Application</h2>")
     
     if not st.session_state.workers_dict:
-        st.warning("⚠️ No worker database found. Please log in to the Admin Portal first to register profiles.")
+        # English conversion fixed here
+        st.warning("⚠️ No worker profiles found in the system database. Please switch to Admin Portal to add or restore worker profiles.")
     else:
         worker_list = list(st.session_state.workers_dict.keys())
         
-        col_sel1, col_sel2, col_sel3 = st.columns(3)
-        with col_sel1: selected_worker = st.selectbox("Select Profile Name:", worker_list)
-        with col_sel2: cnic_input = st.text_input("Enter ID Card Number (CNIC):")
-        with col_sel3: password_input = st.text_input("Enter Password (Your CNIC):", type="password")
+        col_sel1, col_sel2 = st.columns(2)
+        with col_sel1: 
+            selected_worker = st.selectbox("Select Profile Name:", worker_list)
+        with col_sel2: 
+            password_input = st.text_input("Enter Password (Your CNIC Number):", type="password")
             
-        if cnic_input and password_input:
+        if password_input:
             w_data = st.session_state.workers_dict[selected_worker]
             saved_cnic = str(w_data.get("cnic", "")).strip()
             
-            if str(cnic_input).strip() == saved_cnic and str(password_input).strip() == saved_cnic:
+            if str(password_input).strip() == saved_cnic:
                 st.success(f"🔓 Welcome, {selected_worker}!")
                 st.divider()
                 
@@ -106,8 +203,6 @@ if access_role == "Worker":
                 with col_c2: st.metric(label="🟠 Sick Leave", value=f"{sl_val} Days")
                 with col_c3: st.metric(label="🔵 Annual Leave", value=f"{al_val} Days")
                 with col_c4: st.metric(label="🔴 Compensation (CO)", value=f"{co_val} Days")
-                
-                st.divider()
                 
                 col_left_form, col_right_profile = st.columns([1.1, 0.9])
                 
@@ -131,7 +226,7 @@ if access_role == "Worker":
                                 "applied_on": str(date.today()), "status": "Pending"
                             }
                             st.session_state.leave_requests.append(new_req)
-                            st.success("✅ Application submitted successfully! Please remind Admin to download database backup.")
+                            st.success("✅ Application submitted successfully! Please ask Admin to download data backup.")
                             st.rerun()
                         else:
                             st.error("❌ Request Rejected: Insufficient leave balance!")
@@ -139,22 +234,13 @@ if access_role == "Worker":
                 with col_right_profile:
                     st.html("### 🌟 Worker Corporate Profile")
                     display_worker_photo(w_data.get("photo"))
+                    st.write(f"👤 **Name:** {selected_worker}")
+                    st.write(f"🆔 **ID:** {w_data.get('id', 'N/A')}")
                     
-                    st.markdown(f"""<div class="profile-card c-personal"><div class="card-title">👤 Personal Data</div><div class="card-content">
-                    <b>Full Name:</b> {selected_worker}<br><b>Father's Name:</b> {w_data.get('father_name', 'N/A')}<br>
-                    <b>CNIC / Pass:</b> {w_data.get('cnic', 'N/A')}<br><b>Mobile:</b> {w_data.get('mobile', 'N/A')}</div></div>""", unsafe_allow_html=True)
-                    
-                    st.markdown(f"""<div class="profile-card c-job"><div class="card-title">💼 Job Data</div><div class="card-content">
-                    <b>Worker ID:</b> {w_data.get('id', 'N/A')}<br><b>Date of Joining:</b> {w_data.get('joining_date', 'N/A')}<br>
-                    <b>Contract End:</b> {w_data.get('end_date', 'N/A')}</div></div>""", unsafe_allow_html=True)
-                    
-                    st.markdown(f"""<div class="profile-card c-time"><div class="card-title">⏱️ Time Management</div><div class="card-content">
-                    <b>Shift Details:</b> General Factory Shift<br><b>Duty Hours:</b> 08:00 AM - 05:00 PM</div></div>""", unsafe_allow_html=True)
-                    
-                    st.markdown(f"""<div class="profile-card c-payroll"><div class="card-title">💰 Payroll & Compensation</div><div class="card-content">
-                    <b>Basic Monthly Salary:</b> Rs. {w_data.get('salary', '0')}/-<br><b>Benefit Details:</b> Verified Standard Pack<br><b>Succession Status:</b> Active Operational Track</div></div>""", unsafe_allow_html=True)
+                    # Adding operational module click actions inside worker's view too
+                    render_profile_subdata(selected_worker, w_data, "worker_view")
             else:
-                st.error("❌ Invalid CNIC Number or Password.")
+                st.error("❌ Incorrect Password. Please enter your correct CNIC number.")
 
 # ==========================================
 # ADMIN PORTAL INTERFACE
@@ -233,7 +319,8 @@ else:
                         st.session_state.workers_dict[w_name] = {
                             "id": w_id, "cnic": w_cnic, "father_name": w_father, "mobile": w_mobile,
                             "salary": w_salary, "joining_date": str(w_joining), "end_date": str(w_end),
-                            "password": w_cnic, "photo": photo_b64, "CL": cl_q, "Sick": sl_q, "Annual": al_q, "CO": co_q
+                            "password": w_cnic, "photo": photo_b64, "CL": cl_q, "Sick": sl_q, "Annual": al_q, "CO": co_q,
+                            "performance": "Good Standing"
                         }
                         st.success(f"💾 Profile for '{w_name}' saved! Password is sync with CNIC. Please download backup above.")
                         st.rerun()
@@ -269,7 +356,8 @@ else:
                             st.session_state.workers_dict[edit_worker_name] = {
                                 "id": edit_id, "cnic": edit_cnic, "father_name": edit_father, "mobile": edit_mobile,
                                 "salary": edit_salary, "joining_date": str(edit_joining), "end_date": str(edit_end),
-                                "password": edit_cnic, "photo": photo_str, "CL": edit_cl, "Sick": edit_sl, "Annual": edit_al, "CO": edit_co
+                                "password": edit_cnic, "photo": photo_str, "CL": edit_cl, "Sick": edit_sl, "Annual": edit_al, "CO": edit_co,
+                                "performance": current_w_data.get("performance", "Good Standing")
                             }
                             st.success("✅ Profile updated temporarily. Make sure to download the backup file to make it permanent.")
                             st.rerun()
@@ -294,7 +382,7 @@ else:
                                     req["status"] = "Rejected"
                                     st.rerun()
 
-            # TAB 4: COMPLETE SHEETS RECORD WITH SEARCH BAR
+            # TAB 4: COMPLETE SHEETS RECORD WITH SEARCH BAR (IMAGE 2 TARGET)
             with records_tab:
                 st.html("<h4>📊 Factory Workers Sheets & Search Panel</h4>")
                 search_query = st.text_input("🔍 Search Worker by Name or Worker ID:", "").lower()
@@ -315,15 +403,8 @@ else:
                                     st.write(f"📅 **Date of Joining:** {details.get('joining_date', 'N/A')}")
                                     st.write(f"💰 **Monthly Salary:** Rs. {details.get('salary', '0')}/-")
                                 
-                                st.markdown(f"""
-                                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-                                    <span style="background:#3b82f6; color:white; padding:5px 10px; border-radius:5px;">Personal Data</span>
-                                    <span style="background:#10b981; color:white; padding:5px 10px; border-radius:5px;">Job Data</span>
-                                    <span style="background:#f59e0b; color:white; padding:5px 10px; border-radius:5px;">Time Management</span>
-                                    <span style="background:#8b5cf6; color:white; padding:5px 10px; border-radius:5px;">Benefit</span>
-                                    <span style="background:#ec4899; color:white; padding:5px 10px; border-radius:5px;">Payroll & Compensation</span>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                st.code(f"Casual (CL): {details.get('CL', 0)} Days | Sick: {details.get('Sick', 0)} Days | Annual: {details.get('Annual', 0)} Days | CO: {details.get('CO', 0)} Days")
-    elif admin_auth:
-        st.error("❌ Invalid Admin Security Password.")
+                                # Show current leave balances row exactly as image
+                                st.write(f"**Casual (CL):** {details.get('CL', 0)} Days | **Sick:** {details.get('Sick', 0)} Days | **Annual:** {details.get('Annual', 0)} Days | **CO:** {details.get('CO', 0)} Days")
+                                
+                                # 🎯 HERE ARE THE FUNCTIONAL BUTTONS NOW OPERATING PERFECTLY
+                                render_profile_subdata(name, details, f"admin_view_{details.get('id')}")
