@@ -39,7 +39,7 @@ st.html("""
 </style>
 """)
 
-# تصویر اور لوکل سیشن ہینڈلنگ
+# Image handling functions
 def get_image_base64(uploaded_file):
     if uploaded_file is not None:
         bytes_data = uploaded_file.getvalue()
@@ -52,7 +52,7 @@ def display_worker_photo(base64_str):
     else:
         st.markdown('<div style="width:130px; height:130px; border-radius:50%; background-color:#e2e8f0; border:3px dashed #cbd5e1; display:flex; align-items:center; justify-content:center; margin-left:auto; margin-right:auto; margin-bottom:15px; color:#64748b; font-weight:bold;">No Photo</div>', unsafe_allow_html=True)
 
-# سیشن اسٹیٹ انیشلائزیشن
+# Session state initialization
 if "workers_dict" not in st.session_state:
     st.session_state.workers_dict = {}
 if "leave_requests" not in st.session_state:
@@ -79,7 +79,7 @@ if access_role == "Worker":
     st.html("<h2 class='section-title'>👤 Employee Identity Verification & Leave Application</h2>")
     
     if not st.session_state.workers_dict:
-        st.warning("⚠️ ڈیش بورڈ پر کوئی ورکر موجود نہیں ہے۔ برائے مہربانی پہلے ایڈمن پورٹل سے لاگ ان کر کے ورکرز کا پروفائل داخل کریں۔")
+        st.warning("⚠️ No worker database found. Please log in to the Admin Portal first to register profiles.")
     else:
         worker_list = list(st.session_state.workers_dict.keys())
         
@@ -131,13 +131,13 @@ if access_role == "Worker":
                                 "applied_on": str(date.today()), "status": "Pending"
                             }
                             st.session_state.leave_requests.append(new_req)
-                            st.success("✅ درخواست عارضی طور پر محفوظ ہو گئی ہے۔ ایڈمن پورٹل سے بیک اپ ڈاؤن لوڈ کرنا نہ بھولیں!")
+                            st.success("✅ Application submitted successfully! Please remind Admin to download database backup.")
                             st.rerun()
                         else:
                             st.error("❌ Request Rejected: Insufficient leave balance!")
                             
                 with col_right_profile:
-                    st.html("### 🌟 Beautiful People Profile")
+                    st.html("### 🌟 Worker Corporate Profile")
                     display_worker_photo(w_data.get("photo"))
                     
                     st.markdown(f"""<div class="profile-card c-personal"><div class="card-title">👤 Personal Data</div><div class="card-content">
@@ -149,12 +149,12 @@ if access_role == "Worker":
                     <b>Contract End:</b> {w_data.get('end_date', 'N/A')}</div></div>""", unsafe_allow_html=True)
                     
                     st.markdown(f"""<div class="profile-card c-time"><div class="card-title">⏱️ Time Management</div><div class="card-content">
-                    <b>Shift:</b> General Factory Shift<br><b>Duty Hours:</b> 08:00 AM - 05:00 PM</div></div>""", unsafe_allow_html=True)
+                    <b>Shift Details:</b> General Factory Shift<br><b>Duty Hours:</b> 08:00 AM - 05:00 PM</div></div>""", unsafe_allow_html=True)
                     
                     st.markdown(f"""<div class="profile-card c-payroll"><div class="card-title">💰 Payroll & Compensation</div><div class="card-content">
-                    <b>Basic Monthly Salary:</b> Rs. {w_data.get('salary', '0')}/-<br><b>Benefit & Goals:</b> Verified<br><b>Succession:</b> Active</div></div>""", unsafe_allow_html=True)
+                    <b>Basic Monthly Salary:</b> Rs. {w_data.get('salary', '0')}/-<br><b>Benefit Details:</b> Verified Standard Pack<br><b>Succession Status:</b> Active Operational Track</div></div>""", unsafe_allow_html=True)
             else:
-                st.error("❌ شناختی کارڈ نمبر یا ورکر پاسورڈ درست نہیں ہے۔")
+                st.error("❌ Invalid CNIC Number or Password.")
 
 # ==========================================
 # ADMIN PORTAL INTERFACE
@@ -166,37 +166,35 @@ else:
     if admin_auth == ADMIN_PASSWORD:
         st.success("🔓 Admin Access Authorized")
         
-        # 💾 ڈیٹا محفوظ رکھنے کا پکا لوکل بیک اپ سسٹم
-        st.html("<h3>💾 Backup & Recovery Management (ڈیٹا محفوظ کریں)</h3>")
+        # Backup System Dashboard
+        st.html("<h3>💾 Backup & Recovery Management</h3>")
         col_b1, col_b2 = st.columns(2)
         
         with col_b1:
-            # ڈیٹا ڈاؤن لوڈ کرنے کا بٹن
             db_export = {
                 "workers": st.session_state.workers_dict,
                 "requests": st.session_state.leave_requests
             }
             json_string = json.dumps(db_export, indent=4)
             st.download_button(
-                label="📥 Download Database Backup File (کام ختم کرتے وقت ڈاؤن لوڈ کریں)",
+                label="📥 Download Database Backup File (Save before closing)",
                 data=json_string,
                 file_name=f"instaplast_backup_{date.today()}.json",
                 mime="application/json",
                 use_container_width=True
             )
-            st.caption("💡 روزانہ کام ختم کرنے کے بعد اس بٹن پر کلک کر کے فائل اپنے پاس کمپیوٹر میں محفوظ کر لیں۔")
+            st.caption("💡 Tip: Always download this file at the end of the day to keep your data safe on your local PC.")
             
         with col_b2:
-            # ڈیٹا دوبارہ لوڈ کرنے کا بٹن
-            uploaded_backup = st.file_uploader("📤 Upload Backup File (اگر صبح ڈیٹا زیرو نظر آئے تو فائل یہاں ڈالیں):", type=["json"])
+            uploaded_backup = st.file_uploader("📤 Upload Backup File (Restore database if empty):", type=["json"])
             if uploaded_backup is not None:
                 try:
                     backup_data = json.load(uploaded_backup)
                     st.session_state.workers_dict = backup_data.get("workers", {})
                     st.session_state.leave_requests = backup_data.get("requests", [])
-                    st.success("🎯 زبردست! سارا ڈیٹا کامیابی سے دوبارہ لوڈ ہو گیا ہے۔")
+                    st.success("🎯 Success! Entire data registry has been restored successfully.")
                 except Exception as e:
-                    st.error(f"فائل لوڈ کرنے میں مسئلہ ہوا: {e}")
+                    st.error(f"Error importing backup file: {e}")
 
         st.divider()
 
@@ -212,7 +210,7 @@ else:
                 with col_p1:
                     w_id = st.text_input("Worker ID / Roll No:")
                     w_name = st.text_input("Worker Full Name:")
-                    w_father = st.text_input("Father's Name (ولدیت):")
+                    w_father = st.text_input("Father's Name:")
                 with col_p2:
                     w_cnic = st.text_input("ID Card Number / CNIC:")
                     w_mobile = st.text_input("Mobile / WhatsApp Number:")
@@ -237,7 +235,7 @@ else:
                             "salary": w_salary, "joining_date": str(w_joining), "end_date": str(w_end),
                             "password": w_cnic, "photo": photo_b64, "CL": cl_q, "Sick": sl_q, "Annual": al_q, "CO": co_q
                         }
-                        st.success(f"💾 Profile for '{w_name}' saved! اوپر دیے گئے بٹن سے بیک اپ فائل ڈاؤن لوڈ کر لیں۔")
+                        st.success(f"💾 Profile for '{w_name}' saved! Password is sync with CNIC. Please download backup above.")
                         st.rerun()
 
             # TAB 2: EDIT PROFILES
@@ -273,7 +271,7 @@ else:
                                 "salary": edit_salary, "joining_date": str(edit_joining), "end_date": str(edit_end),
                                 "password": edit_cnic, "photo": photo_str, "CL": edit_cl, "Sick": edit_sl, "Annual": edit_al, "CO": edit_co
                             }
-                            st.success("✅ ریکارڈ عارضی طور پر اپڈیٹ ہو گیا ہے، مستقل سیو کرنے کے لیے بیک اپ فائل ڈاؤن لوڈ کریں۔")
+                            st.success("✅ Profile updated temporarily. Make sure to download the backup file to make it permanent.")
                             st.rerun()
 
             # TAB 3: LEAVE REQUESTS QUEUE
@@ -302,7 +300,7 @@ else:
                 search_query = st.text_input("🔍 Search Worker by Name or Worker ID:", "").lower()
                 
                 if not st.session_state.workers_dict:
-                    st.info("کوئی ورکر رجسٹرڈ نہیں ہے۔")
+                    st.info("No workers registered in the platform yet.")
                 else:
                     for name, details in st.session_state.workers_dict.items():
                         if search_query in name.lower() or search_query in str(details.get('id', '')).lower():
@@ -328,4 +326,4 @@ else:
                                 """, unsafe_allow_html=True)
                                 st.code(f"Casual (CL): {details.get('CL', 0)} Days | Sick: {details.get('Sick', 0)} Days | Annual: {details.get('Annual', 0)} Days | CO: {details.get('CO', 0)} Days")
     elif admin_auth:
-        st.error("❌ ایڈمن پورٹل کا پاسورڈ غلط ہے۔")
+        st.error("❌ Invalid Admin Security Password.")
