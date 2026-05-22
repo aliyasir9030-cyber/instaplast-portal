@@ -49,10 +49,17 @@ if "admin_authenticated" not in st.session_state:
 if "lang" not in st.session_state:
     st.session_state.lang = "English"
 
-# Custom CSS for Professional UI and Right-to-Left (RTL) Support for Urdu
+# Custom CSS for Professional UI and Fixing Logo Cutting Issue
 st.html("""
 <style>
-    div.block-container { padding-top: 1rem; padding-bottom: 2rem; }
+    /* Streamlit کے فالتو اوپر والے مارجن کو ختم کرنے کے لیے */
+    [data-testid="stHeader"] {
+        display: none !important;
+    }
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
     .section-title {
         color: #1e3a8a;
         font-family: 'Segoe UI', Arial, sans-serif;
@@ -93,12 +100,13 @@ def display_worker_photo(base64_str):
 lang_col1, lang_col2 = st.columns([4, 1])
 with lang_col1:
     st.html("""
-        <div style="background-color: #1e3a8a; padding: 25px 20px; border-radius: 12px; text-align: center; border-left: 8px solid #e0a924; display: flex; align-items: center; justify-content: center; gap: 15px;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 30px; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; line-height: 1.2;">🏭 INSTAPLAST PVT LTD</h1>
+        <div style="background-color: #1e3a8a; padding: 30px 20px; border-radius: 12px; text-align: center; border-left: 8px solid #e0a924; margin-top: 10px;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; line-height: 1.4; letter-spacing: 1px;">🏭 INSTAPLAST PVT LTD</h1>
+            <p style="color: #f1f5f9; margin: 10px 0 0 0; font-size: 15px; font-weight: 500; opacity: 0.95;">Time Management & Leave Allocation System</p>
         </div>
-        <p style="color: #1e3a8a; margin: 8px 0 15px 0; font-size: 16px; font-weight: 600; text-align: center;">Time Management & Leave Allocation System</p>
     """)
 with lang_col2:
+    st.write("")
     st.write("")
     st.write("")
     if st.session_state.lang == "English":
