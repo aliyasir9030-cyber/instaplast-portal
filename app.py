@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import pandas as pd
 import base64
 import json
@@ -123,7 +123,7 @@ def render_profile_subdata(w_name, data, unique_key):
             <p><b>Worker Registry ID:</b> {data.get('id', 'N/A')}</p>
             <p><b>Department Name:</b> {data.get('department', 'General Operation')}</p>
             <p><b>Official Date of Joining:</b> {data.get('joining_date', 'N/A')}</p>
-            <p><b>Contract Expiry/End Date:</b> {data.get('end_date', 'N/A')}</p>
+            <p><b>Date of End (Contract End):</b> {data.get('end_date', 'N/A')}</p>
             <p><b>Current Status:</b> Active Employee</p>
         </div>
         """, unsafe_allow_html=True)
@@ -288,9 +288,11 @@ else:
                     w_mobile = st.text_input("Mobile / WhatsApp Number:")
                     w_salary = st.text_input("Monthly Salary (Rs.):", value="0")
                 with col_p3:
-                    w_dept = st.text_input("Department Name (e.g., Production, Accounts):", value="Production")
+                    w_dept = st.text_input("Department Name (e.g., Production, Accounts, Store):", value="STORE")
                     w_joining = st.date_input("Date of Joining Company:", value=date.today(), min_value=date(1980,1,1))
-                    w_end = st.date_input("Date of End (Contract End):", value=date.today(), min_value=date(1980,1,1))
+                    
+                    # 🎯 MANUAL END DATE SELECTION (Defaults to 1 year ahead instead of matching joining date exactly)
+                    w_end = st.date_input("Date of End (Contract End):", value=date.today() + timedelta(days=365), min_value=date(1980,1,1))
                     w_photo = st.file_uploader("Upload Worker Photo:", type=["jpg", "jpeg", "png"])
                 
                 st.html("<h5>📊 Initial Leave Quota Allocation</h5>")
@@ -319,18 +321,25 @@ else:
                     edit_worker_name = st.selectbox("Select Worker to Edit:", ["Select Worker"] + list(st.session_state.workers_dict.keys()))
                     if edit_worker_name != "Select Worker":
                         current_w_data = st.session_state.workers_dict[edit_worker_name]
+                        
+                        # Parsing saved end_date back safely
+                        try: saved_end_dt = datetime.strptime(current_w_data.get("end_date", str(date.today())), '%Y-%m-%d').date()
+                        except: saved_end_dt = date.today()
+                            
                         col_e1, col_e2, col_e3 = st.columns(3)
                         with col_e1:
                             edit_id = st.text_input("Worker ID:", value=current_w_data.get("id", ""))
                             edit_father = st.text_input("Father Name:", value=current_w_data.get("father_name", ""))
-                            edit_dept = st.text_input("Department:", value=current_w_data.get("department", "Production"))
+                            edit_dept = st.text_input("Department:", value=current_w_data.get("department", "STORE"))
                         with col_e2:
                             edit_cnic = st.text_input("CNIC Number:", value=current_w_data.get("cnic", ""))
                             edit_mobile = st.text_input("Mobile Number:", value=current_w_data.get("mobile", ""))
                             edit_salary = st.text_input("Monthly Salary:", value=current_w_data.get("salary", "0"))
                         with col_e3:
-                            edit_joining = st.date_input("Joining Date:", value=date.today(), min_value=date(1980,1,1), key="ed_j")
-                            edit_end = st.date_input("Contract End Date:", value=date.today(), min_value=date(1980,1,1), key="ed_e")
+                            edit_joining = st.date_input("Joining Date:", value=datetime.strptime(current_w_data.get("joining_date", str(date.today())), '%Y-%m-%d').date(), min_value=date(1980,1,1), key="ed_j")
+                            
+                            # 🎯 MANUAL SELECTION DURING AUDIT/EDIT
+                            edit_end = st.date_input("Date of End (Contract End):", value=saved_end_dt, min_value=date(1980,1,1), key="ed_e")
                             edit_photo = st.file_uploader("Update New Photo (Optional):", type=["jpg", "png"])
                         
                         col_eb1, col_eb2, col_eb3, col_eb4 = st.columns(4)
@@ -394,6 +403,7 @@ else:
                                 with col_v3:
                                     st.write(f"🏢 **Department:** {details.get('department', 'General Operation')}")
                                     st.write(f"📅 **Date of Joining:** {details.get('joining_date', 'N/A')}")
+                                    st.write(f"⏳ **Date of End:** {details.get('end_date', 'N/A')}")
                                     st.write(f"💰 **Monthly Salary:** Rs. {details.get('salary', '0')}/-")
                                 
                                 st.write(f"**Casual (CL):** {details.get('CL', 0)} Days | **Sick (SL):** {details.get('Sick', 0)} Days | **Annual (AL):** {details.get('Annual', 0)} Days | **CO:** {details.get('CO', 0)} Days")
