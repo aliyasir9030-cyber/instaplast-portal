@@ -16,7 +16,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Local Storage Paths (Excel Files)
+# Local Storage Paths (Excel Files - Now working after openpyxl installation)
 WORKER_FILE = "instaplast_workers.xlsx"
 REQUESTS_FILE = "instaplast_requests.xlsx"
 
@@ -61,9 +61,9 @@ def save_all_data(df, file_path, worksheet_name):
         conn.update(worksheet=worksheet_name, data=df)
         st.success("✅ Data saved to local PC and synced to Google Cloud Sheets!")
     except Exception:
-        st.info("💾 Data securely saved locally on your computer (instaplast_workers.xlsx). Cloud Sync pending connection keys.")
+        st.info(f"💾 Data securely saved locally on your computer ({file_path}). Cloud Sync pending connection keys.")
 
-# Clean IDs formatting
+# Clean IDs formatting to prevent decimal issues (.0)
 for dataframe in [workers_df, requests_df]:
     if not dataframe.empty and 'id' in dataframe.columns:
         dataframe['id'] = dataframe['id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
@@ -75,7 +75,7 @@ st.markdown("---")
 # Sidebar - Role Selection
 st.sidebar.header("🔒 Gate Panel")
 role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin"])
-st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v16.0</small>", unsafe_allow_html=True)
+st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v16.2</small>", unsafe_allow_html=True)
 
 # ----------------- WORKER DASHBOARD -----------------
 if role == "Worker":
