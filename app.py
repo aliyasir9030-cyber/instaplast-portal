@@ -443,7 +443,8 @@ else:
             with requests_tab:
                 st.html("<h4>📥 Incoming Leave Applications Queue</h4>")
                 pending_reqs = [r for r in st.session_state.leave_requests if r["status"] == "Pending"]
-                if not pending_reqs: st.info("🛋️ No pending leave applications.")
+                if not pending_reqs: 
+                    st.info("🛋️ No pending leave applications.")
                 else:
                     for req in pending_reqs:
                         with st.container(border=True):
@@ -466,12 +467,22 @@ else:
                                         sync_data_to_sheet(worker_payload, "Worker")
                                     
                                     req["status"] = "Approved"
+                                    # Update local state immediately so it clears from the screen instantly
+                                    for r in st.session_state.leave_requests:
+                                        if r["id"] == req["id"]:
+                                            r["status"] = "Approved"
+                                            
                                     if sync_data_to_sheet(req, "Requests"):
                                         st.rerun()
                                         
                             with col_rej:
                                 if st.button("❌ Reject Request", key=f"rej_{req['id']}", use_container_width=True):
                                     req["status"] = "Rejected"
+                                    # Update local state immediately so it clears from the screen instantly
+                                    for r in st.session_state.leave_requests:
+                                        if r["id"] == req["id"]:
+                                            r["status"] = "Rejected"
+                                            
                                     if sync_data_to_sheet(req, "Requests"):
                                         st.rerun()
 
