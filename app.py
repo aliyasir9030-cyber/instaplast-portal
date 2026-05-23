@@ -17,7 +17,7 @@ SHEET_ID = "1UjhsblmHa9UoUsbkx9-OYc98rXRcqToTJDdBAHZDciI"
 GSHEET_WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Worker"
 GSHEET_REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Requests"
 
-# --- 📥 CLOUD DATA LOADING LOGIC ---
+# --- 📥 CLOUD DATA LOADING LOGIC (BUGLERPROOF VERSION) ---
 def load_cloud_database(force_refresh=False):
     if force_refresh or "workers_dict" not in st.session_state:
         try:
@@ -25,18 +25,19 @@ def load_cloud_database(force_refresh=False):
             temp_workers = {}
             if not workers_df.empty:
                 for _, row in workers_df.iterrows():
-                    w_name = str(row.get('name', '')).strip()
-                    if w_name and w_name != "nan" and w_name != "":
-                        temp_workers[w_name] = {
-                            "id": str(row.get('id', '')).replace('.0', '').strip(),
-                            "cnic": str(row.get('cnic', '')).replace('.0', '').strip(),
-                            "father_name": str(row.get('father_name', 'N/A')),
-                            "mobile": str(row.get('mobile', 'N/A')).replace('.0', '').strip(),
-                            "salary": str(row.get('salary', '0')),
-                            "joining_date": str(row.get('joining_date', '')),
-                            "end_date": str(row.get('end_date', '-')),
-                            "department": str(row.get('department', 'STORE')),
-                            "password": str(row.get('password', '123')),
+                    w_name = row.get('name')
+                    if pd.notna(w_name) and str(w_name).strip() != "" and str(w_name).strip().lower() != "nan":
+                        w_name_str = str(w_name).strip()
+                        temp_workers[w_name_str] = {
+                            "id": str(row.get('id', '')).split('.')[0].strip(),
+                            "cnic": str(row.get('cnic', '')).split('.')[0].strip(),
+                            "father_name": str(row.get('father_name', 'N/A')).strip(),
+                            "mobile": str(row.get('mobile', '')).split('.')[0].strip(),
+                            "salary": str(row.get('salary', '0')).strip(),
+                            "joining_date": str(row.get('joining_date', '')).strip(),
+                            "end_date": str(row.get('end_date', '-')).strip(),
+                            "department": str(row.get('department', 'STORE')).strip(),
+                            "password": str(row.get('password', '123')).strip(),
                             "photo": str(row.get('photo', '')) if pd.notna(row.get('photo')) else "",
                             "CL": int(row.get('CL', 0)) if pd.notna(row.get('CL')) else 0,
                             "Sick": int(row.get('Sick', 0)) if pd.notna(row.get('Sick')) else 0,
@@ -44,7 +45,7 @@ def load_cloud_database(force_refresh=False):
                             "CO": int(row.get('CO', 0)) if pd.notna(row.get('CO')) else 0
                         }
             st.session_state.workers_dict = temp_workers
-        except:
+        except Exception as e:
             st.session_state.workers_dict = {}
 
     if force_refresh or "leave_requests" not in st.session_state:
@@ -53,22 +54,22 @@ def load_cloud_database(force_refresh=False):
             temp_reqs = []
             if not requests_df.empty:
                 for idx, row in requests_df.iterrows():
-                    w_name = str(row.get('worker', '')).strip()
-                    # 🛑 کرپٹ یا خالی ڈیٹا کو کیو میں آنے سے روکنے کا فلٹر
-                    if w_name and w_name != "nan" and w_name != "":
+                    w_name = row.get('worker')
+                    # 🔍 پینڈنگ ڈیٹا کو ہر قسم کی کرپٹ یا خالی اسٹرنگ سے بچانے کا مضبوط فلٹر
+                    if pd.notna(w_name) and str(w_name).strip() != "" and str(w_name).strip().lower() != "nan":
                         temp_reqs.append({
-                            "id": str(row.get('id', idx+1)).replace('.0', '').strip(),
-                            "worker": w_name,
+                            "id": str(row.get('id', idx+1)).split('.')[0].strip(),
+                            "worker": str(w_name).strip(),
                             "leave_type": str(row.get('leave_type', 'CL')).strip(),
                             "days": int(row.get('days', 1)) if pd.notna(row.get('days')) else 1,
-                            "date_from": str(row.get('date_from', '')),
-                            "date_to": str(row.get('date_to', '')),
-                            "reason": str(row.get('reason', '-')),
-                            "applied_on": str(row.get('applied_on', '')),
+                            "date_from": str(row.get('date_from', '')).strip(),
+                            "date_to": str(row.get('date_to', '')).strip(),
+                            "reason": str(row.get('reason', '-')).strip(),
+                            "applied_on": str(row.get('applied_on', '')).strip(),
                             "status": str(row.get('status', 'Pending')).strip()
                         })
             st.session_state.leave_requests = temp_reqs
-        except:
+        except Exception as e:
             st.session_state.leave_requests = []
 
     if "logged_in_user" not in st.session_state:
@@ -110,7 +111,6 @@ st.html("""
     .status-badge-approved { background-color: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 13px; }
     .status-badge-rejected { background-color: #fee2e2; color: #b91c1c; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 13px; }
     
-    /* Calendar Grid Styles */
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 15px; text-align: center; }
     .calendar-header { font-weight: bold; background-color: #1e3a8a; padding: 8px; border-radius: 4px; color: #ffffff; }
     .day-cell { padding: 12px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1; position: relative; min-height: 55px; }
@@ -142,10 +142,10 @@ def render_monthly_attendance_calendar(worker_name):
     st.html(f"<h4>📆 Monthly Attendance & Leave Grid ({datetime.now().strftime('%B %Y')})</h4>")
     
     col_legend1, col_legend2, col_legend3, col_legend4 = st.columns(4)
-    with col_legend1: st.markdown("🟢 **Present (P)**: Active Workdays")
-    with col_legend2: st.markdown("🔵 **Leave (L)**: Approved Factory Leaves")
-    with col_legend3: st.markdown("🔴 **Absent (A)**: Unexcused / Sunday Offs")
-    with col_legend4: st.markdown("🟡 **Hold (H)**: Future Calendar Days")
+    with col_legend1: st.markdown("🟢 **Present (P)**")
+    with col_legend2: st.markdown("🔵 **Leave (L)**")
+    with col_legend3: st.markdown("🔴 **Absent (A)**")
+    with col_legend4: st.markdown("🟡 **Hold (H)**")
 
     approved_dates = set()
     worker_reqs = [r for r in st.session_state.leave_requests if r["worker"].strip().lower() == worker_name.strip().lower() and r["status"] == "Approved"]
@@ -172,52 +172,35 @@ def render_monthly_attendance_calendar(worker_name):
         grid_html += f'<div class="calendar-header">{day}</div>'
         
     p_count, a_count, l_count, h_count = 0, 0, 0, 0
-    
     for day in month_days:
         if day == 0:
             grid_html += '<div class="day-cell day-empty"></div>'
         else:
             current_loop_date = date(year, month, day)
-            
             if current_loop_date in approved_dates:
-                cell_class = "day-l"
-                status_label = "L"
-                l_count += 1
+                cell_class = "day-l"; status_label = "L"; l_count += 1
             elif current_loop_date.weekday() == 6:
-                cell_class = "day-a"
-                status_label = "A"
-                a_count += 1
+                cell_class = "day-a"; status_label = "A"; a_count += 1
             elif current_loop_date > today:
-                cell_class = "day-h"
-                status_label = "H"
-                h_count += 1
+                cell_class = "day-h"; status_label = "H"; h_count += 1
             else:
-                cell_class = "day-p"
-                status_label = "P"
-                p_count += 1
+                cell_class = "day-p"; status_label = "P"; p_count += 1
                 
             grid_html += f'<div class="day-cell {cell_class}">{day}<br><span style="font-size:11px;">{status_label}</span></div>'
             
     grid_html += '</div>'
     st.html(grid_html)
-    
-    cm1, cm2, cm3, cm4 = st.columns(4)
-    with cm1: st.metric("Presents (P)", f"{p_count} Days")
-    with cm2: st.metric("Leaves (L)", f"{l_count} Days")
-    with cm3: st.metric("Absents / Off (A)", f"{a_count} Days")
-    with cm4: st.metric("Future Hold (H)", f"{h_count} Days")
 
-# --- TOP BAR: BRANDING ---
+# --- TOP BAR ---
 st.html("""
     <div style="background-color: #1e3a8a; padding: 30px 20px; border-radius: 12px; text-align: center; border-left: 8px solid #e0a924; margin-top: 10px; margin-bottom: 20px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; line-height: 1.4; letter-spacing: 1px;">🏭 INSTAPLAST PVTLTD</h1>
-        <p style="color: #f1f5f9; margin: 10px 0 0 0; font-size: 15px; font-weight: 500; opacity: 0.95;">Time Management & Leave Allocation System</p>
+        <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; line-height: 1.4;">🏭 INSTAPLAST PVTLTD</h1>
+        <p style="color: #f1f5f9; margin: 10px 0 0 0; font-size: 15px; font-weight: 500;">Time Management & Leave Allocation System</p>
     </div>
 """)
 
 st.sidebar.title("🔒 Gate Panel")
-role_options = ["Worker", "Admin Portal"]
-access_role = st.sidebar.selectbox("Select Access Role:", role_options)
+access_role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin Portal"])
 st.sidebar.divider()
 st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v16.0")
 
@@ -226,7 +209,6 @@ is_admin_mode = "Admin" in access_role
 def render_profile_subdata(w_name, data, unique_key):
     st.write("---")
     st.markdown("### 📋 Detailed Profile Modules")
-    
     cb1, cb2, cb3, cb4, cb5 = st.columns(5)
     with cb1: btn_personal = st.button("👤 Personal Data", key=f"btn_p_{unique_key}", use_container_width=True)
     with cb2: btn_job = st.button("💼 Job Data", key=f"btn_j_{unique_key}", use_container_width=True)
@@ -235,9 +217,7 @@ def render_profile_subdata(w_name, data, unique_key):
     with cb5: btn_payroll = st.button("💰 Payroll & Comp.", key=f"btn_pay_{unique_key}", use_container_width=True)
 
     state_key = f"active_tab_{unique_key}"
-    if state_key not in st.session_state:
-        st.session_state[state_key] = "Personal Data"
-
+    if state_key not in st.session_state: st.session_state[state_key] = "Personal Data"
     if btn_personal: st.session_state[state_key] = "Personal Data"
     if btn_job: st.session_state[state_key] = "Job Data"
     if btn_time: st.session_state[state_key] = "Time Management"
@@ -245,74 +225,28 @@ def render_profile_subdata(w_name, data, unique_key):
     if btn_payroll: st.session_state[state_key] = "Payroll"
 
     active = st.session_state[state_key]
-    
     if active == "Personal Data":
-        st.markdown(f"""
-        <div class="data-box" style="border-left: 5px solid #3b82f6;">
-            <h4 style="color:#1d4ed8;">👤 Personal Data Record</h4>
-            <p><b>Full Name:</b> {w_name}</p>
-            <p><b>Father's Name:</b> {data.get('father_name', 'N/A')}</p>
-            <p><b>CNIC Number (System Password):</b> {data.get('cnic', 'N/A')}</p>
-            <p><b>Mobile / WhatsApp:</b> {data.get('mobile', 'N/A')}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown(f'<div class="data-box" style="border-left: 5px solid #3b82f6;"><h4>👤 Personal Data Record</h4><p><b>Full Name:</b> {w_name}</p><p><b>Father\'s Name:</b> {data.get("father_name", "N/A")}</p><p><b>CNIC Number:</b> {data.get("cnic", "N/A")}</p><p><b>Mobile:</b> {data.get("mobile", "N/A")}</p></div>', unsafe_allow_html=True)
     elif active == "Job Data":
-        st.markdown(f"""
-        <div class="data-box" style="border-left: 5px solid #10b981;">
-            <h4 style="color:#047857;">💼 Job Data Record</h4>
-            <p><b>Worker Registry ID:</b> {data.get('id', 'N/A')}</p>
-            <p><b>Department Name:</b> {data.get('department', 'STORE')}</p>
-            <p><b>Official Date of Joining:</b> {data.get('joining_date', 'N/A')}</p>
-            <p><b>Date of End (Contract End):</b> {data.get('end_date', 'N/A')}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown(f'<div class="data-box" style="border-left: 5px solid #10b981;"><h4>💼 Job Data Record</h4><p><b>Worker Registry ID:</b> {data.get("id", "N/A")}</p><p><b>Department:</b> {data.get("department", "STORE")}</p><p><b>Official Date of Joining:</b> {data.get("joining_date", "N/A")}</p><p><b>Date of End:</b> {data.get("end_date", "-")}</p></div>', unsafe_allow_html=True)
     elif active == "Time Management":
-        st.markdown(f"""
-        <div class="data-box" style="border-left: 5px solid #f59e0b;">
-            <h4 style="color:#b45309;">⏱️ Time Management & Attendance</h4>
-            <p><b>Assigned Shift:</b> General Factory Shift</p>
-            <p><b>Standard Shift Timings:</b> 08:00 AM - 05:00 PM</p>
-            <p><b>Total Approved Leave Balance:</b> {int(data.get('CL', 0)) + int(data.get('Sick', 0)) + int(data.get('Annual', 0)) + int(data.get('CO', 0))} Days</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown(f'<div class="data-box" style="border-left: 5px solid #f59e0b;"><h4>⏱️ Time Management & Attendance</h4><p><b>Assigned Shift:</b> General Factory Shift</p><p><b>Total Approved Leave Balance:</b> {int(data.get("CL", 0)) + int(data.get("Sick", 0)) + int(data.get("Annual", 0)) + int(data.get("CO", 0))} Days</p></div>', unsafe_allow_html=True)
     elif active == "Benefit":
-        st.markdown(f"""
-        <div class="data-box" style="border-left: 5px solid #8b5cf6;">
-            <h4 style="color:#6d28d9;">🎁 Benefits, Performance & Goals</h4>
-            <p><b>Performance Status:</b> Good Standing</p>
-            <p><b>Medical Cover Benefits:</b> Included (Standard Factory Grade Package)</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown(f'<div class="data-box" style="border-left: 5px solid #8b5cf6;"><h4>🎁 Benefits & Performance</h4><p><b>Performance Status:</b> Good Standing</p></div>', unsafe_allow_html=True)
     elif active == "Payroll":
-        st.markdown(f"""
-        <div class="data-box" style="border-left: 5px solid #ec4899;">
-            <h4 style="color:#be185d;">💰 Payroll & Compensation</h4>
-            <p><b>Basic Monthly Salary:</b> Rs. {data.get('salary', '0')}/-</p>
-            <p><b>Compensation Leave (CO) Allotment:</b> {data.get('CO', 0)} Days</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="data-box" style="border-left: 5px solid #ec4899;"><h4>💰 Payroll & Compensation</h4><p><b>Basic Monthly Salary:</b> Rs. {data.get("salary", "0")}/-</p></div>', unsafe_allow_html=True)
 
-# ==========================================
-# WORKER PORTAL INTERFACE
-# ==========================================
+# WORKER PORTAL
 if not is_admin_mode:
     st.html("<h2 class='section-title'>👤 Employee Identity Verification & Leave Application</h2>")
-    
     if not st.session_state.workers_dict:
         st.warning("⚠️ No worker profiles found in the system database. Please switch to Admin Portal.")
     else:
         if st.session_state.logged_in_user is None:
             worker_list = list(st.session_state.workers_dict.keys())
             col_sel1, col_sel2 = st.columns(2)
-            
-            with col_sel1: 
-                selected_worker = st.selectbox("Select Profile Name:", worker_list)
-            with col_sel2: 
-                password_input = st.text_input("Enter Password (Your CNIC Number):", type="password")
+            with col_sel1: selected_worker = st.selectbox("Select Profile Name:", worker_list)
+            with col_sel2: password_input = st.text_input("Enter Password (Your CNIC Number):", type="password")
                 
             if st.button("🔒 Secure Login", use_container_width=True):
                 w_data = st.session_state.workers_dict[selected_worker]
@@ -320,8 +254,7 @@ if not is_admin_mode:
                     st.session_state.logged_in_user = selected_worker
                     st.success("✅ Logged in successfully!")
                     st.rerun()
-                else:
-                    st.error("❌ Incorrect Password. Please enter your correct CNIC number.")
+                else: st.error("❌ Incorrect Password.")
         else:
             current_worker = st.session_state.logged_in_user
             w_data = st.session_state.workers_dict[current_worker]
@@ -334,54 +267,39 @@ if not is_admin_mode:
                     st.rerun()
                     
             st.divider()
-            
-            with st.container(border=True):
-                render_monthly_attendance_calendar(current_worker)
-                
+            with st.container(border=True): render_monthly_attendance_calendar(current_worker)
             st.divider()
             
             st.html("<h3 class='section-title'>📊 Your Live Progress Dashboard</h3>")
-            cl_val, sl_val = int(w_data.get("CL", 0)), int(w_data.get("Sick", 0))
-            al_val, co_val = int(w_data.get("Annual", 0)), int(w_data.get("CO", 0))
-            
             col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-            with col_c1: st.metric(label="🟢 Casual Leave (CL)", value=f"{cl_val} Days")
-            with col_c2: st.metric(label="🟠 Sick Leave (SL)", value=f"{sl_val} Days")
-            with col_c3: st.metric(label="🔵 Annual Leave (AL)", value=f"{al_val} Days")
-            with col_c4: st.metric(label="🔴 Compensation (CO)", value=f"{co_val} Days")
+            with col_c1: st.metric("🟢 Casual Leave (CL)", f"{w_data.get('CL', 0)} Days")
+            with col_c2: st.metric("🟠 Sick Leave (SL)", f"{w_data.get('Sick', 0)} Days")
+            with col_c3: st.metric("🔵 Annual Leave (AL)", f"{w_data.get('Annual', 0)} Days")
+            with col_c4: st.metric("🔴 Compensation (CO)", f"{w_data.get('CO', 0)} Days")
             
             col_left_form, col_right_profile = st.columns([1.1, 0.9])
-            
             with col_left_form:
                 st.markdown("### 📝 Leave Application Form")
-                leave_opts = ["Casual Leave (CL)", "Sick Leave (SL)", "Annual Leave (AL)", "Compensation (CO)"]
-                leave_type = st.selectbox("Select Leave Type:", leave_opts)
+                leave_type = st.selectbox("Select Leave Type:", ["Casual Leave (CL)", "Sick Leave (SL)", "Annual Leave (AL)", "Compensation (CO)"])
                 col_d1, col_d2 = st.columns(2)
                 with col_d1: date_from = st.date_input("Leave From:", value=date.today())
                 with col_d2: date_to = st.date_input("Leave To:", value=date.today())
-                
                 leave_days = st.number_input("Number of Days Required:", min_value=1, max_value=30, value=1)
                 reason = st.text_area("State Reason for Leave:")
                 
-                submit_clicked = st.button("Apply Now (Submit Request)", use_container_width=True)
-                
-                if submit_clicked:
+                if st.button("Apply Now (Submit Request)", use_container_width=True):
                     leave_key = "CL" if "Casual" in leave_type else "Sick" if "Sick" in leave_type else "Annual" if "Annual" in leave_type else "CO"
                     if int(w_data.get(leave_key, 0)) >= leave_days:
-                        
                         new_req = {
-                            "id": str(w_data.get("id", "")), 
-                            "worker": str(current_worker), "leave_type": str(leave_key), "days": int(leave_days),
+                            "id": str(w_data.get("id", "")), "worker": str(current_worker), "leave_type": str(leave_key), "days": int(leave_days),
                             "date_from": str(date_from), "date_to": str(date_to), "reason": str(reason if reason else "-"),
                             "applied_on": str(date.today()), "status": "Pending"
                         }
-                        
                         if sync_data_to_sheet(new_req, "Requests"):
-                            load_cloud_database(force_refresh=True)  # فوراً ڈیٹا ریفریش کریں
-                            st.success("✅ Application submitted and synced to Cloud with Worker ID!")
+                            load_cloud_database(force_refresh=True)
+                            st.success("✅ Application submitted and synced to Cloud!")
                             st.rerun()
-                    else:
-                        st.error("❌ Request Rejected: Insufficient leave balance!")
+                    else: st.error("❌ Request Rejected: Insufficient leave balance!")
                         
             with col_right_profile:
                 st.markdown("### 🌟 Worker Corporate Profile")
@@ -390,34 +308,10 @@ if not is_admin_mode:
                 st.write(f"🏭 **Department:** {w_data.get('department', 'STORE')}")
                 st.write(f"🆔 **ID:** {w_data.get('id', 'N/A')}")
                 render_profile_subdata(current_worker, w_data, "worker_view")
-            
-            st.write("---")
-            st.html("<h3 class='section-title'>📝 Your Leave Applications History</h3>")
-            worker_history = [r for r in st.session_state.leave_requests if r["worker"].strip().lower() == current_worker.strip().lower()]
-            
-            if not worker_history:
-                st.info("ℹ️ You haven't submitted any leave requests yet.")
-            else:
-                for idx, req in enumerate(reversed(worker_history)):
-                    status = req.get("status", "Pending").strip()
-                    if status == "Approved": badge = f'<span class="status-badge-approved">✅ Approved</span>'
-                    elif status == "Rejected": badge = f'<span class="status-badge-rejected">❌ Rejected</span>'
-                    else: badge = f'<span class="status-badge-pending">⏳ Pending Admin Approval</span>'
-                        
-                    with st.container(border=True):
-                        col_h1, col_h2 = st.columns([3, 1])
-                        with col_h1:
-                            st.markdown(f"**Leave Category:** {req['leave_type']} ({req['days']} Days) | **Applied On:** {req['applied_on']}")
-                            st.markdown(f"📅 **Duration:** {req['date_from']} to {req['date_to']} | **Reason:** {req['reason']}")
-                        with col_h2:
-                            st.html(f"<div style='text-align: right; margin-top: 10px;'>{badge}</div>")
 
-# ==========================================
-# ADMIN PORTAL INTERFACE
-# ==========================================
+# ADMIN PORTAL
 else:
     st.html("<h2 class='section-title'>🛠️ Admin Management Control Panel</h2>")
-    
     if not st.session_state.admin_authenticated:
         admin_auth = st.text_input("Enter Admin Security Password:", type="password")
         if st.button("🔒 Verify Admin Access", use_container_width=True):
@@ -434,16 +328,14 @@ else:
                 st.rerun()
                 
         st.divider()
-
         with st.container(border=True):
             admin_tab, edit_tab, requests_tab, records_tab = st.tabs([
                 "👥 Register & Delete Workers", "✏️ Edit Worker Profiles", "📥 Leave Requests Queue", "📊 Complete Factory Sheets"
             ])
             
-            # TAB 1: REGISTER & DELETE WORKERS
+            # TAB 1: REGISTER & DELETE
             with admin_tab:
                 col_reg_side, col_del_side = st.columns([1.4, 0.6])
-                
                 with col_reg_side:
                     st.html("<h4>➕ Register New Factory Worker Profile</h4>")
                     col_p1, col_p2, col_p3 = st.columns(3)
@@ -456,12 +348,11 @@ else:
                         w_mobile = st.text_input("Mobile / WhatsApp Number:")
                         w_salary = st.text_input("Monthly Salary (Rs.):", value="0")
                     with col_p3:
-                        w_dept = st.text_input("Department Name (e.g., Production, Store):", value="STORE")
+                        w_dept = st.text_input("Department Name:", value="STORE")
                         w_joining = st.date_input("Date of Joining Company:", value=date.today(), min_value=date(1980,1,1))
                         w_end = st.date_input("Date of End (Contract End):", value=date.today() + timedelta(days=365), min_value=date(1980,1,1))
                         w_photo = st.file_uploader("Upload Worker Photo:", type=["jpg", "jpeg", "png"])
                     
-                    st.html("<h5>📊 Initial Leave Quota Allocation</h5>")
                     col_l1, col_l2, col_l3, col_l4 = st.columns(4)
                     with col_l1: cl_q = st.number_input("Casual Leave (CL):", value=0, key="reg_cl")
                     with col_l2: sl_q = st.number_input("Sick Leave (SL):", value=0, key="reg_sl")
@@ -480,26 +371,20 @@ else:
                             }
                             if sync_data_to_sheet(worker_payload, "Worker"):
                                 load_cloud_database(force_refresh=True)
-                                st.success(f"💾 Profile saved permanently!")
+                                st.success("💾 Profile saved permanently!")
                                 st.rerun()
                                 
                 with col_del_side:
                     st.html("<h4 style='color:#b91c1c;'>🗑️ Delete Worker Profile</h4>")
-                    st.markdown("کسی بھی ورکر کو ڈیٹا بیس سے مکمل طور پر خارج کرنے کے لیے نیچے سے نام منتخب کریں:")
                     if st.session_state.workers_dict:
                         delete_target = st.selectbox("Select Profile to Remove:", ["Select Worker"] + list(st.session_state.workers_dict.keys()), key="del_tgt")
                         if delete_target != "Select Worker":
-                            st.warning(f"⚠️ انتباہ: '{delete_target}' کو ڈیلیٹ کرنے سے ان کا سارا ریکارڈ کلاؤڈ اور ریکویسٹ شیٹ سے ہمیشہ کے لیے ختم ہو جائے گا۔")
-                            
-                            confirm_del = st.checkbox("جی ہاں، میں اس ورکر کو مستقل حذف کرنا چاہتا ہوں۔", key="conf_del")
+                            confirm_del = st.checkbox("جی ہاں، میں اس ورکر کو مستقل حذف کرنا چاہتا ہوں۔")
                             if st.button("❌ Delete Worker Permanently", use_container_width=True, disabled=not confirm_del):
-                                delete_payload = {"name": str(delete_target), "action": "DELETE"}
-                                if sync_data_to_sheet(delete_payload, "Worker"):
+                                if sync_data_to_sheet({"name": str(delete_target), "action": "DELETE"}, "Worker"):
                                     load_cloud_database(force_refresh=True)
-                                    st.success(f"🗑️ '{delete_target}' کا پروفائل اور اس کی تمام ریکویسٹس شیٹ سے مستقل حذف کر دی گئی ہیں۔")
+                                    st.success(f"🗑️ Record Deleted!")
                                     st.rerun()
-                    else:
-                        st.info("No active profiles loaded to delete.")
 
             # TAB 2: EDIT PROFILES
             with edit_tab:
@@ -508,29 +393,19 @@ else:
                     edit_worker_name = st.selectbox("Select Worker to Edit:", ["Select Worker"] + list(st.session_state.workers_dict.keys()))
                     if edit_worker_name != "Select Worker":
                         current_w_data = st.session_state.workers_dict[edit_worker_name]
-                        
-                        current_salary = str(current_w_data.get("salary", "0")).strip()
-                        current_end_date_str = str(current_w_data.get("end_date", "-")).strip()
-                        
-                        try:
-                            default_end_date = datetime.strptime(current_end_date_str, "%Y-%m-%d").date()
-                        except:
-                            default_end_date = date.today()
-                        
                         col_e1, col_e2, col_e3 = st.columns(3)
                         with col_e1:
                             edit_id = st.text_input("Worker ID:", value=current_w_data.get("id", ""))
                             edit_father = st.text_input("Father Name:", value=current_w_data.get("father_name", ""))
-                            edit_salary = st.text_input("Monthly Salary (Rs.):", value=current_salary)
+                            edit_salary = st.text_input("Monthly Salary (Rs.):", value=current_w_data.get("salary", "0"))
                         with col_e2:
                             edit_cnic = st.text_input("CNIC Number:", value=current_w_data.get("cnic", ""))
                             edit_mobile = st.text_input("Mobile Number:", value=current_w_data.get("mobile", ""))
-                            edit_end = st.date_input("End of Date (Retirement/Left):", value=default_end_date, min_value=date(1980,1,1))
-                        with col_e3:
-                            edit_dept = st.text_input("Department:", value=current_w_data.get("department", "STORE"))
+                            try: def_date = datetime.strptime(str(current_w_data.get("end_date", "-")), "%Y-%m-%d").date()
+                            except: def_date = date.today()
+                            edit_end = st.date_input("End of Date:", value=def_date, min_value=date(1980,1,1))
+                        with col_e3: edit_dept = st.text_input("Department:", value=current_w_data.get("department", "STORE"))
                         
-                        st.write("---")
-                        st.html("<h5>📊 Adjust Leave Balances</h5>")
                         col_eb1, col_eb2, col_eb3, col_eb4 = st.columns(4)
                         with col_eb1: edit_cl = st.number_input("Casual (CL):", value=int(current_w_data.get("CL", 0)), key="e_cl")
                         with col_eb2: edit_sl = st.number_input("Sick (SL):", value=int(current_w_data.get("Sick", 0)), key="e_sl")
@@ -539,31 +414,27 @@ else:
                         
                         if st.button("Update Profile Changes", use_container_width=True):
                             updated_payload = {
-                                "name": str(edit_worker_name), 
-                                "id": str(edit_id), 
-                                "cnic": str(edit_cnic), 
-                                "father_name": str(edit_father),
-                                "mobile": str(edit_mobile), 
-                                "salary": int(edit_salary) if str(edit_salary).isdigit() else 0,
-                                "joining_date": str(current_w_data.get('joining_date', '')), 
-                                "end_date": str(edit_end),
-                                "department": str(edit_dept),
-                                "password": str(edit_cnic), 
-                                "photo": str(current_w_data.get('photo', '')),
-                                "CL": int(edit_cl), 
-                                "Sick": int(edit_sl), 
-                                "Annual": int(edit_al), 
-                                "CO": int(edit_co)
+                                "name": str(edit_worker_name), "id": str(edit_id), "cnic": str(edit_cnic), "father_name": str(edit_father),
+                                "mobile": str(edit_mobile), "salary": int(edit_salary) if str(edit_salary).isdigit() else 0,
+                                "joining_date": str(current_w_data.get('joining_date', '')), "end_date": str(edit_end), "department": str(edit_dept),
+                                "password": str(edit_cnic), "photo": str(current_w_data.get('photo', '')),
+                                "CL": int(edit_cl), "Sick": int(edit_sl), "Annual": int(edit_al), "CO": int(edit_co)
                             }
                             if sync_data_to_sheet(updated_payload, "Worker"):
                                 load_cloud_database(force_refresh=True)
-                                st.success(f"✅ {edit_worker_name} کا ریکارڈ کامیابی سے اپڈیٹ ہو گیا ہے!")
+                                st.success("✅ Record Updated!")
                                 st.rerun()
 
             # TAB 3: LEAVE REQUESTS QUEUE
             with requests_tab:
                 st.html("<h4>📥 Incoming Leave Applications Queue</h4>")
-                pending_reqs = [r for r in st.session_state.leave_requests if r["status"].strip() == "Pending"]
+                
+                # 🔄 فورس ریفریش کا بٹن تاکہ ایڈمن مینوئلی بھی دوبارہ ڈیٹا کھینچ سکے
+                if st.button("🔄 Refresh Data From Cloud", use_container_width=True):
+                    load_cloud_database(force_refresh=True)
+                    st.rerun()
+                    
+                pending_reqs = [r for r in st.session_state.leave_requests if str(r.get("status", "Pending")).strip().lower() == "pending"]
                 
                 if not pending_reqs: 
                     st.info("🛋️ No pending leave applications.")
@@ -579,7 +450,6 @@ else:
                                     if req['worker'] in st.session_state.workers_dict:
                                         st.session_state.workers_dict[req['worker']][req['leave_type']] -= int(req['days'])
                                         w_info = st.session_state.workers_dict[req['worker']]
-                                        
                                         worker_payload = {
                                             "name": str(req['worker']), "id": str(w_info['id']), "cnic": str(w_info['cnic']), "father_name": str(w_info['father_name']),
                                             "mobile": str(w_info['mobile']), "salary": int(w_info['salary']) if str(w_info['salary']).isdigit() else 0,
@@ -591,26 +461,24 @@ else:
                                     
                                     req["status"] = "Approved"
                                     if sync_data_to_sheet(req, "Requests"):
-                                        load_cloud_database(force_refresh=True) # 🔑 فوراً کلاؤڈ ڈیٹا دوبارہ لوڈ کرے گا تاکہ لسٹ صاف ہو جائے
+                                        load_cloud_database(force_refresh=True)
                                         st.rerun()
                                         
                             with col_rej:
                                 if st.button("❌ Reject Request", key=f"rej_{req['id']}_{idx}", use_container_width=True):
                                     req["status"] = "Rejected"
                                     if sync_data_to_sheet(req, "Requests"):
-                                        load_cloud_database(force_refresh=True) # 🔑 فوراً لسٹ صاف کرنے کے لیے فورس ریفریش
+                                        load_cloud_database(force_refresh=True)
                                         st.rerun()
 
-            # TAB 4: COMPLETE SHEETS RECORD & ADMIN CALENDAR VIEW
+            # TAB 4: COMPLETE SHEETS
             with records_tab:
                 st.html("<h4>📊 Factory Workers Sheets & Calendar Logs</h4>")
-                search_query = st.text_input("🔍 Search Worker to view their Full Sheet or Calendar:", "").lower()
-                
+                search_query = st.text_input("🔍 Search Worker:", "").lower()
                 if st.session_state.workers_dict:
                     for name, details in st.session_state.workers_dict.items():
                         if search_query in name.lower() or search_query in str(details.get('id', '')).lower():
                             with st.expander(f"📋 Profile Logs: {name} (ID: {details.get('id', 'N/A')})"):
                                 render_monthly_attendance_calendar(name)
                                 st.write("---")
-                                clean_key = name.replace(" ", "_").lower()
-                                render_profile_subdata(name, details, f"adm_grid_{clean_key}")
+                                render_profile_subdata(name, details, f"adm_grid_{name.replace(' ', '_').lower()}")
