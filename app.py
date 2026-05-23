@@ -14,7 +14,7 @@ st.markdown("""
     .stButton>button { background-color: #1E3A8A !important; color: white !important; border-radius: 6px !important; font-weight: bold !important; width: 100%; }
     .stButton>button:hover { background-color: #1D4ED8 !important; }
     .balance-box { background-color: white; padding: 15px; border-radius: 8px; border-left: 5px solid #1E3A8A; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
-    .login-container { background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; border: 1px solid #E2E8F0; }
+    .login-box-sidebar { background-color: #F1F5F9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #CBD5E1; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -76,29 +76,18 @@ st.markdown("<h1 style='text-align: center;'>🏭 INSTAPLAST LEAVE MANAGEMENT SY
 st.markdown("<p style='text-align: center; color: #64748B;'>Corporate Employee Portal</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- GLOBAL LOGOUT BUTTON (If anyone is logged in) ---
-if st.session_state.logged_in:
-    if st.sidebar.button("🚪 Logout / Sign Out"):
-        st.session_state.logged_in = False
-        st.session_state.user_role = None
-        st.session_state.user_id = None
-        st.rerun()
+# --- 🛠️ SIDEBAR MANAGEMENT: LOGIN AND LOGOUT IN ONE PLACE ---
+st.sidebar.markdown("### 🏢 Portal Control Panel")
 
-# --- MAIN DASHBOARD: BOTH GATEWAYS VISIBLE TOGETHER ON SINGLE SCREEN ---
 if not st.session_state.logged_in:
+    # Worker Login section in Sidebar
+    st.sidebar.markdown("<div class='login-box-sidebar'>", unsafe_allow_html=True)
+    st.sidebar.subheader("👤 Worker Login")
+    login_name_input = st.sidebar.text_input("Enter Worker Name:", placeholder="e.g., Muhammad Waqas", key="side_w_name").strip().lower()
+    login_cnic = st.sidebar.text_input("Enter ID Card Password:", type="password", key="side_w_pass").strip()
     
-    # 1. WORKER LOGIN GATEWAY (Top Section)
-    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-    st.subheader("👤 Worker Corporate Authentication")
-    col_w1, col_w2 = st.columns(2)
-    
-    # 🛠️ FIXED: Text altered to "Enter Worker Name" and "Enter ID Card Password" exactly as requested
-    login_name_input = col_w1.text_input("Enter Worker Name:", placeholder="e.g., Muhammad Waqas").strip().lower()
-    login_cnic = col_w2.text_input("Enter ID Card Password:", type="password").strip()
-    
-    if st.button("Unlock Worker Session"):
+    if st.sidebar.button("Unlock Worker Session"):
         if login_name_input and login_cnic:
-            # Match directly on the entered name and CNIC password sequence
             worker_match = workers_df[(workers_df['name'].astype(str).str.lower().str.strip() == login_name_input) & (workers_df['cnic'].astype(str).str.strip() == login_cnic)]
             if not worker_match.empty:
                 st.session_state.logged_in = True
@@ -106,31 +95,56 @@ if not st.session_state.logged_in:
                 st.session_state.user_id = worker_match.iloc[0]['id']
                 st.rerun()
             else:
-                st.error("❌ Invalid Worker Name or ID Card Password.")
+                st.sidebar.error("❌ Invalid Name or Password.")
         else:
-            st.warning("⚠️ Please fill all login parameters.")
-    st.markdown("</div>", unsafe_allow_html=True)
+            st.sidebar.warning("⚠️ Fill all fields.")
+    st.sidebar.markdown("</div>", unsafe_allow_html=True)
     
-    # 2. ADMIN LOGIN GATEWAY (Bottom Section on same page)
-    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-    st.subheader("⚙️ Administrator System Authentication")
-    admin_password = st.text_input("Enter Executive Admin Password:", type="password", key="admin_pass_field").strip()
+    # Admin Login section in Sidebar
+    st.sidebar.markdown("<div class='login-box-sidebar'>", unsafe_allow_html=True)
+    st.sidebar.subheader("⚙️ Admin Login")
+    admin_password = st.sidebar.text_input("Enter Admin Password:", type="password", key="side_a_pass").strip()
     
-    if st.button("Unlock Admin Dashboard"):
+    if st.sidebar.button("Unlock Admin Dashboard"):
         if admin_password == "admin123":
             st.session_state.logged_in = True
             st.session_state.user_role = "Admin"
             st.rerun()
         else:
-            st.error("❌ Access Denied. Unauthorized Security Token.")
-    st.markdown("</div>", unsafe_allow_html=True)
+            st.sidebar.error("❌ Access Denied.")
+    st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- LIVE SESSION: WORKER PORTAL -----------------
+else:
+    # If logged in, display active role and Logout button in Sidebar
+    st.sidebar.success(f"🔓 Session Active: {st.session_state.user_role}")
+    if st.sidebar.button("🚪 Logout / Sign Out", key="global_logout_btn"):
+        st.session_state.logged_in = False
+        st.session_state.user_role = None
+        st.session_state.user_id = None
+        st.rerun()
+
+# --- 📊 MAIN SCREEN LOGIC DEPENDING ON SESSION STATE ---
+
+# CASE 1: NO ACTIVE SESSION (Show Search Bar and Workers Directory to Anyone)
+if not st.session_state.logged_in:
+    st.markdown("### 🔍 Search & Filter Staff Database")
+    main_search = st.text_input("Enter Worker Name or ID Number to Search:", placeholder="Type here to search staff...").strip().lower()
+    
+    if not workers_df.empty:
+        if main_search:
+            filtered_df = workers_df[workers_df['name'].astype(str).str.lower().str.contains(main_search) | workers_df['id'].astype(str).str.lower().str.contains(main_search)]
+            st.dataframe(filtered_df, use_container_width=True)
+        else:
+            st.dataframe(workers_df, use_container_width=True)
+    else:
+        st.info("No active corporate records found in the database.")
+
+# CASE 2: WORKER PORTAL ACTIVATED
 elif st.session_state.logged_in and st.session_state.user_role == "Worker":
     worker_id = st.session_state.user_id
     worker_data = workers_df[workers_df['id'] == worker_id].iloc[0]
     
-    st.success(f"🔓 Authorized Session: Active for '{worker_data['name']}'")
+    st.success(f"Welcome, {worker_data['name']}! You have successfully authenticated.")
     
     # Leave Balances Visual Grid
     st.markdown("### 📊 Your Leave Balances")
@@ -166,8 +180,6 @@ elif st.session_state.logged_in and st.session_state.user_role == "Worker":
                 
     with col_profile:
         st.markdown("### 📋 Complete Worker Corporate Profile")
-        
-        # Displaying requested 8 column categories transparently in worker view
         with st.expander("👤 Personal Data", expanded=True):
             st.write(f"**Full Name:** {worker_data.get('name', '-')}")
             st.write(f"**Father Name:** {worker_data.get('father_name', '-')}")
@@ -200,7 +212,7 @@ elif st.session_state.logged_in and st.session_state.user_role == "Worker":
         with st.expander("🔄 Succession"):
             st.write(f"**Succession Management Strategy Map:** {worker_data.get('succession', '-')}")
 
-# ----------------- LIVE SESSION: ADMIN DASHBOARD -----------------
+# CASE 3: ADMINISTRATIVE PORTAL ACTIVATED
 elif st.session_state.logged_in and st.session_state.user_role == "Admin":
     st.subheader("⚙️ Central Admin Management Control")
     
@@ -213,34 +225,28 @@ elif st.session_state.logged_in and st.session_state.user_role == "Admin":
     
     with tab1:
         st.markdown("### 🔍 Search & Filter Staff Database")
-        search_query = st.text_input("Enter Worker Name or ID Number:").strip().lower()
-        
+        search_query = st.text_input("Search inside admin panel (Name/ID):").strip().lower()
         if not workers_df.empty:
             if search_query:
                 filtered_df = workers_df[workers_df['name'].astype(str).str.lower().str.contains(search_query) | workers_df['id'].astype(str).str.lower().str.contains(search_query)]
                 st.dataframe(filtered_df, use_container_width=True)
             else:
                 st.dataframe(workers_df, use_container_width=True)
-        else:
-            st.info("No active corporate records found.")
             
     with tab2:
         st.markdown("### 📥 Pending Leave System Requests")
-        st.caption("Note: Balance deductions trigger solely upon manual executive authorization to avoid errors.")
-        
         if not requests_df.empty:
             pending_df = requests_df[requests_df['status'] == "Pending"]
             if not pending_df.empty:
                 st.dataframe(pending_df, use_container_width=True)
             else:
-                st.success("🎉 Executive Task Queue Empty! No pending requests found.")
+                st.success("🎉 Executive Task Queue Empty!")
         else:
             st.info("Application history logs are empty.")
             
     with tab3:
         st.markdown("### ➕ Register New Corporate Worker Profile")
         with st.form("new_worker_form"):
-            
             with st.expander("👤 Personal Data", expanded=True):
                 w_name = st.text_input("Worker Full Name:")
                 w_father = st.text_input("Father's Name:")
@@ -250,7 +256,7 @@ elif st.session_state.logged_in and st.session_state.user_role == "Admin":
                 
             with st.expander("💼 Job Data"):
                 w_id = st.text_input("Assign Unique Worker ID Code:", placeholder="e.g., IPL-1025")
-                w_dept = st.text_input("Enter Department Name (e.g., POWER HOUSE, STORE, PRODUCTION):")
+                w_dept = st.text_input("Enter Department Name (e.g., POWER HOUSE, STORE):")
                 w_join = st.date_input("Corporate Date of Joining:", min_value=datetime(2010, 1, 1))
                 w_job_extra = st.text_input("Additional Job Description Details:")
                 
@@ -259,7 +265,6 @@ elif st.session_state.logged_in and st.session_state.user_role == "Admin":
                 w_allowance = st.text_input("Additional Corporate Allowances Details:")
                 
             with st.expander("📅 Time Management"):
-                st.markdown("#### Admin Allowed Leaves Quota System")
                 q_cl = st.number_input("Set Allowed Casual Leave Quota (CL):", min_value=0, value=12)
                 q_sl = st.number_input("Set Allowed Sick Leave Quota (SL):", min_value=0, value=8)
                 q_al = st.number_input("Set Allowed Annual Leave Quota (AL):", min_value=0, value=14)
@@ -269,16 +274,15 @@ elif st.session_state.logged_in and st.session_state.user_role == "Admin":
                 w_benefits = st.text_area("Corporate Employee Health & Security Benefits:")
                 
             with st.expander("💳 Payroll"):
-                w_payroll = st.text_input("Payroll Account Bank Structure Details / IBFT Keys:")
+                w_payroll = st.text_input("Payroll Account Bank Structure Details:")
                 
             with st.expander("📈 Performance and Goals"):
-                w_performance = st.text_area("Set Departmental KPIs, Performance Records and Active Goals:")
+                w_performance = st.text_area("Set Departmental KPIs and Goals:")
                 
             with st.expander("🔄 Succession"):
-                w_succession = st.text_input("Succession Pipeline Plan / Substitute Management Profile:")
+                w_succession = st.text_input("Succession Pipeline Plan:")
 
             submit_btn = st.form_submit_button("Save & Deploy New Worker Profile")
-            
             if submit_btn and w_name and w_id:
                 worker_payload = {
                     "name": str(w_name), "id": str(w_id), "cnic": str(w_cnic), "father_name": str(w_father),
@@ -300,10 +304,7 @@ elif st.session_state.logged_in and st.session_state.user_role == "Admin":
             
             if selected_worker_id:
                 selected_worker = workers_df[workers_df['id'] == selected_worker_id].iloc[0]
-                
                 with st.form("edit_worker_form"):
-                    st.info(f"Modifying Database Values For: {selected_worker['name']} ({selected_worker['id']})")
-                    
                     edit_dept = st.text_input("Modify Department:", value=str(selected_worker.get('department', '')))
                     edit_salary = st.number_input("Modify Base Salary Amount:", value=int(selected_worker.get('salary', 25000)))
                     edit_cl = st.number_input("Modify Allowed Casual Leave Balance (CL):", value=int(selected_worker.get('CL', 0)))
@@ -313,14 +314,13 @@ elif st.session_state.logged_in and st.session_state.user_role == "Admin":
                     
                     edit_personal_extra = st.text_input("Modify Personal Data Extra:", value=str(selected_worker.get('personal_data', '')))
                     edit_job_extra = st.text_input("Modify Job Data Extra:", value=str(selected_worker.get('job_data', '')))
-                    edit_comp_notes = st.text_area("Modify Compensation & Allowance Field Information:", value=str(selected_worker.get('compensation', '')))
-                    edit_benefits = st.text_area("Modify Corporate Employee Benefits Profile:", value=str(selected_worker.get('benefits', '')))
+                    edit_comp_notes = st.text_area("Modify Compensation Info:", value=str(selected_worker.get('compensation', '')))
+                    edit_benefits = st.text_area("Modify Benefits Profile:", value=str(selected_worker.get('benefits', '')))
                     edit_payroll = st.text_input("Modify Payroll Details:", value=str(selected_worker.get('payroll', '')))
                     edit_performance = st.text_area("Modify Performance goals:", value=str(selected_worker.get('performance_goals', '')))
                     edit_succession = st.text_input("Modify Succession fields:", value=str(selected_worker.get('succession', '')))
                     
                     save_edit_btn = st.form_submit_button("Update & Save Structural Matrix Changes")
-                    
                     if save_edit_btn:
                         updated_payload = {
                             "name": str(selected_worker['name']), "id": str(selected_worker['id']), "cnic": str(selected_worker['cnic']),
