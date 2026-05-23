@@ -3,8 +3,36 @@ import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 
-# Page Configuration
+# Page Configuration with Professional Styling
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
+
+# Custom Professional Theme Colors (Insta Plast Style)
+st.markdown("""
+    <style>
+    .stApp {
+        background-color: #F8FAFC;
+    }
+    h1 {
+        color: #1E3A8A !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 700;
+    }
+    .stButton>button {
+        background-color: #1E3A8A !important;
+        color: white !important;
+        border-radius: 6px !important;
+        border: none !important;
+        font-weight: bold !important;
+    }
+    .stButton>button:hover {
+        background-color: #1D4ED8 !important;
+        color: white !important;
+    }
+    div[data-testid="stSidebarNav"] {
+        background-color: #1E3A8A;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Connect to Google Sheets via st.connection
 try:
@@ -18,7 +46,6 @@ def load_sheet_data(worksheet_name):
     try:
         return conn.read(worksheet=worksheet_name, ttl=0)
     except Exception:
-        # Return empty dataframe with correct headers if sheet is empty
         if worksheet_name == "Worker":
             return pd.DataFrame(columns=["name", "id", "cnic", "father_name", "mobile", "salary", "joining_date", "end_date", "department", "password", "photo", "CL", "Sick", "Annual", "CO"])
         else:
@@ -43,23 +70,21 @@ if not requests_df.empty:
     requests_df['id'] = requests_df['id'].astype(str).str.replace(r'\.0$', '', regex=True)
 
 # Application UI Header
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏭 INSTAPLAST Leave Portal</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>🏭 INSTAPLAST Leave Portal</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 # Sidebar - Role Selection
 st.sidebar.header("🔒 Gate Panel")
 role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin"])
-st.sidebar.markdown("<br><br><small>Powered by INSTAPLAST Engine v15.0</small>", unsafe_allow_html=True)
+st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v15.1</small>", unsafe_allow_html=True)
 
 # ----------------- WORKER DASHBOARD -----------------
 if role == "Worker":
     st.subheader("📋 Worker Leave Application & Profile")
     
-    # Simple Login using Worker ID
     worker_id_input = st.text_input("Enter your Worker ID to unlock profile (e.g., IPL-1020):").strip()
     
     if worker_id_input:
-        # Match worker
         worker_match = workers_df[workers_df['id'] == worker_id_input]
         
         if not worker_match.empty:
@@ -87,7 +112,6 @@ if role == "Worker":
                 reason = st.text_area("State Reason for Leave:")
                 
                 if st.button("Apply Now (Submit Request)"):
-                    # Create new request row
                     new_request = pd.DataFrame([{
                         "id": worker_data['id'],
                         "worker": worker_data['name'],
@@ -140,10 +164,8 @@ elif role == "Admin":
                     
                     c1, c2 = st.columns(2)
                     if c1.button("✅ Approve Request", key=f"app_{idx}"):
-                        # 1. Update status to Approved
                         requests_df.at[idx, 'status'] = "Approved"
                         
-                        # 2. Deduct from balance only after approval to avoid double-cutting
                         w_idx = workers_df[workers_df['id'] == str(row['id'])].index
                         if len(w_idx) > 0:
                             short_type = "CL" if "Casual" in row['leave_type'] else "Sick" if "Sick" in row['leave_type'] else "Annual" if "Annual" in row['leave_type'] else "CO"
@@ -152,7 +174,6 @@ elif role == "Admin":
                                 current_bal = 0
                             workers_df.at[w_idx[0], short_type] = max(0, int(current_bal) - int(row['days']))
                         
-                        # Save both sheets to live cloud
                         save_sheet_data(workers_df, "Worker")
                         save_sheet_data(requests_df, "Requests")
                         st.button("Click to Update Status")
@@ -177,10 +198,11 @@ elif role == "Admin":
             w_join = st.date_input("Date of Joining:", min_value=datetime(2010, 1, 1))
             w_dept = st.selectbox("Department:", ["PRODUCTION", "STORE", "QUALITY", "MAINTENANCE", "ADMIN"])
             
-            st.markdown("#### Initial Leave Quota Allocations")
-            q_cl = st.number_input("Casual Leave Balance (CL):", min_value=0, value=12)
-            q_sl = st.number_input("Sick Leave Balance (SL):", min_value=0, value=8)
-            q_al = st.number_input("Annual Leave Balance (AL):", min_value=0, value=14)
+            # Form balances default to 0 so Admin must allocate manually
+            st.markdown("#### Initial Leave Quota Allocations (Issue by Admin)")
+            q_cl = st.number_input("Casual Leave Balance (CL):", min_value=0, value=0)
+            q_sl = st.number_input("Sick Leave Balance (SL):", min_value=0, value=0)
+            q_al = st.number_input("Annual Leave Balance (AL):", min_value=0, value=0)
             q_co = st.number_input("Compensation Leave Balance (CO):", min_value=0, value=0)
             
             submitted = st.form_submit_button("Register & Sync Worker")
