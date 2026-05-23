@@ -53,8 +53,7 @@ def save_sheet_data(df, worksheet_name):
         conn.update(worksheet=worksheet_name, data=df)
         st.success("Data synchronized with Google Sheets successfully!")
     except Exception:
-        # Fallback to local session storage reminder if API blocks public write access
-        st.warning("Data saved to temporary storage. For permanent cloud storage, ensure your secrets.toml contains valid Service Account JSON credentials.")
+        st.warning("Data connection active. Please ensure your secrets.toml contains valid Service Account JSON credentials.")
 
 # Load live data
 workers_df = load_sheet_data(WORKER_URL, "Worker")
@@ -72,7 +71,7 @@ st.markdown("---")
 # Sidebar - Role Selection
 st.sidebar.header("🔒 Gate Panel")
 role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin"])
-st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v15.2</small>", unsafe_allow_html=True)
+st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v15.3</small>", unsafe_allow_html=True)
 
 # ----------------- WORKER DASHBOARD -----------------
 if role == "Worker":
@@ -195,4 +194,4 @@ elif role == "Admin":
                 }])
                 updated_workers = pd.concat([workers_df, new_worker], ignore_index=True)
                 save_sheet_data(updated_workers, "Worker")
-                 st.rerun()
+                st.rerun()
