@@ -11,8 +11,8 @@ st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layou
 
 ADMIN_PASSWORD = "admin123"  
 
-# --- 🌐 LIVE GOOGLE APPS SCRIPT API CONFIGURATION ---
-API_URL = "https://script.google.com/macros/s/AKfycbyIvA-XxT1qpezKEU2-DXze6eqEhEGtJmZIM14TbpQVzmhVpVC3pM-DEXT3XJxXNIVf/exec"
+# --- 🌐 LIVE GOOGLE APPS SCRIPT API CONFIGURATION (UPDATED URL) ---
+API_URL = "https://script.google.com/macros/s/AKfycbxEzlemdjGit27B_GBAVQigMuh93DXHJyDRatz21bl0Wl__lJxFaaQiAX2hdkbf-sgq/exec"
 SHEET_ID = "1UjhsblmHa9UoUsbkx9-OYc98rXRcqToTJDdBAHZDciI"
 GSHEET_WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Worker"
 GSHEET_REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Requests"
@@ -26,7 +26,7 @@ def load_cloud_database():
             if not workers_df.empty:
                 for _, row in workers_df.iterrows():
                     w_name = str(row.get('name', '')).strip()
-                    if w_name:
+                    if w_name and w_name != "nan":
                         temp_workers[w_name] = {
                             "id": str(row.get('id', '')).replace('.0', '').strip(),
                             "cnic": str(row.get('cnic', '')).replace('.0', '').strip(),
@@ -144,7 +144,6 @@ def render_monthly_attendance_calendar(worker_name):
     with col_legend3: st.markdown("🔴 **Absent (A)**: Unexcused / Sunday Offs")
     with col_legend4: st.markdown("🟡 **Hold (H)**: Future Calendar Days")
 
-    # Get approved leave dates for this specific worker
     approved_dates = set()
     worker_reqs = [r for r in st.session_state.leave_requests if r["worker"].strip().lower() == worker_name.strip().lower() and r["status"] == "Approved"]
     
@@ -161,7 +160,7 @@ def render_monthly_attendance_calendar(worker_name):
 
     today = date.today()
     year, month = today.year, today.month
-    cal = calendar.Calendar(firstweekday=6) # Starts on Sunday
+    cal = calendar.Calendar(firstweekday=6)
     month_days = cal.itermonthdays(year, month)
     
     days_headers = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -181,7 +180,7 @@ def render_monthly_attendance_calendar(worker_name):
                 cell_class = "day-l"
                 status_label = "L"
                 l_count += 1
-            elif current_loop_date.weekday() == 6: # Sunday Off
+            elif current_loop_date.weekday() == 6:
                 cell_class = "day-a"
                 status_label = "A"
                 a_count += 1
@@ -333,8 +332,7 @@ if not is_admin_mode:
                     
             st.divider()
             
-            # --- 📆 MONTHLY CALENDAR GRID ON WORKER DISPLAY ---
-            with st.container(border=True):
+            with St.container(border=True):
                 render_monthly_attendance_calendar(current_worker)
                 
             st.divider()
@@ -387,7 +385,6 @@ if not is_admin_mode:
                 st.write(f"🆔 **ID:** {w_data.get('id', 'N/A')}")
                 render_profile_subdata(current_worker, w_data, "worker_view")
             
-            # --- WORKER LIVE LEAVE HISTORY SECTION ---
             st.write("---")
             st.html("<h3 class='section-title'>📝 Your Leave Applications History</h3>")
             worker_history = [r for r in st.session_state.leave_requests if r["worker"].strip().lower() == current_worker.strip().lower()]
@@ -481,7 +478,7 @@ else:
                                 st.success(f"💾 Profile saved permanently!")
                                 st.rerun()
                                 
-                # 🔥 PERMANENT DELETE MODULE 🔥
+                # 🔥 PERMANENT FULL ROW DELETE MODULE 🔥
                 with col_del_side:
                     st.html("<h4 style='color:#b91c1c;'>🗑️ Delete Worker Profile</h4>")
                     st.markdown("کسی بھی ورکر کو ڈیٹا بیس سے مکمل طور پر خارج کرنے کے لیے نیچے سے نام منتخب کریں:")
@@ -490,18 +487,16 @@ else:
                         if delete_target != "Select Worker":
                             st.warning(f"⚠️ انتباہ: '{delete_target}' کو ڈیلیٹ کرنے سے ان کا سارا ریکارڈ فائل سے ہمیشہ کے لیے ختم ہو جائے گا۔")
                             
-                            # Secure Confirmation Checkbox
                             confirm_del = st.checkbox("جی ہاں، میں اس ورکر کو مستقل حذف کرنا چاہتا ہوں۔", key="conf_del")
                             if st.button("❌ Delete Worker Permanently", use_container_width=True, disabled=not confirm_del):
-                                # Payload to send delete instruction to script
+                                # Sending explicit action trigger to clear the ENTIRE row line
                                 delete_payload = {"name": str(delete_target), "action": "DELETE"}
                                 if sync_data_to_sheet(delete_payload, "Worker"):
-                                    # Force Reset Local Session State for Immediate UI Clearing
                                     if "workers_dict" in st.session_state:
                                         del st.session_state["workers_dict"]
                                     if "leave_requests" in st.session_state:
                                         del st.session_state["leave_requests"]
-                                    st.success(f"🗑️ '{delete_target}' کا پروفائل کامیابی سے کلیئر کر دیا گیا ہے۔")
+                                    st.success(f"🗑️ '{delete_target}' کا پروفائل کلاؤڈ فائل سے نام سمیت مکمل حذف کر دیا گیا ہے۔")
                                     st.rerun()
                     else:
                         st.info("No active profiles loaded to delete.")
@@ -543,7 +538,7 @@ else:
                                 st.success("✅ Changes saved successfully.")
                                 st.rerun()
 
-            # TAB 3: LEAVE REQUESTS QUEUE (With Active Force Reset and Clear Fix)
+            # TAB 3: LEAVE REQUESTS QUEUE
             with requests_tab:
                 st.html("<h4>📥 Incoming Leave Applications Queue</h4>")
                 pending_reqs = [r for r in st.session_state.leave_requests if r["status"].strip() == "Pending"]
@@ -575,7 +570,6 @@ else:
                                     req["status"] = "Approved"
                                     sync_data_to_sheet(req, "Requests")
                                     
-                                    # FORCE RESET CLEAR FOR LIVE REFRESH
                                     if "leave_requests" in st.session_state:
                                         del st.session_state["leave_requests"]
                                     if "workers_dict" in st.session_state:
@@ -588,7 +582,6 @@ else:
                                     req["status"] = "Rejected"
                                     sync_data_to_sheet(req, "Requests")
                                     
-                                    # FORCE RESET CLEAR FOR LIVE REFRESH
                                     if "leave_requests" in st.session_state:
                                         del st.session_state["leave_requests"]
                                     if "workers_dict" in st.session_state:
@@ -596,7 +589,7 @@ else:
                                         
                                     st.rerun()
 
-            # TAB 4: COMPLETE SHEETS RECORD & ADMIN CALENDAR VIEW (FIXED KEY ERROR)
+            # TAB 4: COMPLETE SHEETS RECORD & ADMIN CALENDAR VIEW
             with records_tab:
                 st.html("<h4>📊 Factory Workers Sheets & Calendar Logs</h4>")
                 search_query = st.text_input("🔍 Search Worker to view their Full Sheet or Calendar:", "").lower()
@@ -607,6 +600,5 @@ else:
                             with st.expander(f"📋 Profile Logs: {name} (ID: {details.get('id', 'N/A')})"):
                                 render_monthly_attendance_calendar(name)
                                 st.write("---")
-                                # 🔥 FIX: Used worker name instead of ID to avoid 'nan' duplicate key error 🔥
                                 clean_key = name.replace(" ", "_").lower()
                                 render_profile_subdata(name, details, f"adm_grid_{clean_key}")
