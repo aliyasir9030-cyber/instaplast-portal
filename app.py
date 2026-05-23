@@ -1,10 +1,10 @@
-import streamlit as str
+import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 
 # Page Configuration
-st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="📊", layout="wide")
+st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
 # Connect to Google Sheets via st.connection
 try:
@@ -18,7 +18,7 @@ def load_sheet_data(worksheet_name):
     try:
         return conn.read(worksheet=worksheet_name, ttl=0)
     except Exception:
-        # Return empty dataframe with correct headers if connection fails or sheet empty
+        # Return empty dataframe with correct headers if sheet is empty
         if worksheet_name == "Worker":
             return pd.DataFrame(columns=["name", "id", "cnic", "father_name", "mobile", "salary", "joining_date", "end_date", "department", "password", "photo", "CL", "Sick", "Annual", "CO"])
         else:
@@ -102,7 +102,7 @@ if role == "Worker":
                     
                     updated_requests = pd.concat([requests_df, new_request], ignore_index=True)
                     save_sheet_data(updated_requests, "Requests")
-                    st.rerun()
+                    st.button("Click to Refresh Panel")
             
             with col_profile:
                 st.markdown("### 🌟 Worker Corporate Profile")
@@ -127,7 +127,10 @@ elif role == "Admin":
     # Tab 2: Action Center for Leaves
     with menu[1]:
         st.markdown("### Manage Leave Applications")
-        pending_requests = requests_df[requests_df['status'] == "Pending"]
+        if not requests_df.empty:
+            pending_requests = requests_df[requests_df['status'] == "Pending"]
+        else:
+            pending_requests = pd.DataFrame()
         
         if not pending_requests.empty:
             for idx, row in pending_requests.iterrows():
@@ -152,12 +155,12 @@ elif role == "Admin":
                         # Save both sheets to live cloud
                         save_sheet_data(workers_df, "Worker")
                         save_sheet_data(requests_df, "Requests")
-                        st.rerun()
+                        st.button("Click to Update Status")
                         
                     if c2.button("❌ Reject Request", key=f"rej_{idx}"):
                         requests_df.at[idx, 'status'] = "Rejected"
                         save_sheet_data(requests_df, "Requests")
-                        st.rerun()
+                        st.button("Click to Update Status")
         else:
             st.success("All clear! No pending leave requests found.")
             
@@ -180,7 +183,7 @@ elif role == "Admin":
             q_al = st.number_input("Annual Leave Balance (AL):", min_value=0, value=14)
             q_co = st.number_input("Compensation Leave Balance (CO):", min_value=0, value=0)
             
-            submitted = st.form_submit_with_clicks = st.form_submit_button("Register & Sync Worker")
+            submitted = st.form_submit_button("Register & Sync Worker")
             
             if submitted and w_name and w_id:
                 new_worker = pd.DataFrame([{
@@ -192,4 +195,4 @@ elif role == "Admin":
                 
                 updated_workers = pd.concat([workers_df, new_worker], ignore_index=True)
                 save_sheet_data(updated_workers, "Worker")
-                st.rerun()
+                st.button("Click to Refresh Sheet")
