@@ -91,19 +91,22 @@ if not st.session_state.logged_in:
     st.markdown("<div class='login-container'>", unsafe_allow_html=True)
     st.subheader("👤 Worker Corporate Authentication")
     col_w1, col_w2 = st.columns(2)
-    login_id = col_w1.text_input("Enter Worker ID:", placeholder="e.g., IPL-1020").strip()
-    login_cnic = col_w2.text_input("Enter CNIC Card Number (As Password):", type="password").strip()
+    
+    # 🛠️ FIXED: Text altered to "Enter Worker Name" and "Enter ID Card Password" exactly as requested
+    login_name_input = col_w1.text_input("Enter Worker Name:", placeholder="e.g., Muhammad Waqas").strip().lower()
+    login_cnic = col_w2.text_input("Enter ID Card Password:", type="password").strip()
     
     if st.button("Unlock Worker Session"):
-        if login_id and login_cnic:
-            worker_match = workers_df[(workers_df['id'] == login_id) & (workers_df['cnic'].astype(str).str.strip() == login_cnic)]
+        if login_name_input and login_cnic:
+            # Match directly on the entered name and CNIC password sequence
+            worker_match = workers_df[(workers_df['name'].astype(str).str.lower().str.strip() == login_name_input) & (workers_df['cnic'].astype(str).str.strip() == login_cnic)]
             if not worker_match.empty:
                 st.session_state.logged_in = True
                 st.session_state.user_role = "Worker"
-                st.session_state.user_id = login_id
+                st.session_state.user_id = worker_match.iloc[0]['id']
                 st.rerun()
             else:
-                st.error("❌ Invalid Worker ID or CNIC Password.")
+                st.error("❌ Invalid Worker Name or ID Card Password.")
         else:
             st.warning("⚠️ Please fill all login parameters.")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -247,7 +250,6 @@ elif st.session_state.logged_in and st.session_state.user_role == "Admin":
                 
             with st.expander("💼 Job Data"):
                 w_id = st.text_input("Assign Unique Worker ID Code:", placeholder="e.g., IPL-1025")
-                # 🛠️ FIXED: Dropdown replaced with Manual Text Entry for custom items like POWER HOUSE
                 w_dept = st.text_input("Enter Department Name (e.g., POWER HOUSE, STORE, PRODUCTION):")
                 w_join = st.date_input("Corporate Date of Joining:", min_value=datetime(2010, 1, 1))
                 w_job_extra = st.text_input("Additional Job Description Details:")
