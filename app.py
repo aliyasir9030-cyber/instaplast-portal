@@ -11,7 +11,7 @@ st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layou
 
 ADMIN_PASSWORD = "admin123"  
 
-# --- 🌐 LIVE GOOGLE APPS SCRIPT API CONFIGURATION (UPDATED URL) ---
+# --- 🌐 LIVE GOOGLE APPS SCRIPT API CONFIGURATION ---
 API_URL = "https://script.google.com/macros/s/AKfycbwuE4FtMg-hpiQm_HHFetdXEsIXTXTKNuauHQi0RCFAXd9mqfN034KI50EYRxxXxBKl/exec"
 SHEET_ID = "1UjhsblmHa9UoUsbkx9-OYc98rXRcqToTJDdBAHZDciI"
 GSHEET_WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Worker"
@@ -350,7 +350,7 @@ if not is_admin_mode:
             col_left_form, col_right_profile = st.columns([1.1, 0.9])
             
             with col_left_form:
-                st.html("### 📝 Leave Application Form")
+                st.markdown("### 📝 Leave Application Form")
                 leave_opts = ["Casual Leave (CL)", "Sick Leave (SL)", "Annual Leave (AL)", "Compensation (CO)"]
                 leave_type = st.selectbox("Select Leave Type:", leave_opts)
                 col_d1, col_d2 = st.columns(2)
@@ -360,25 +360,31 @@ if not is_admin_mode:
                 leave_days = st.number_input("Number of Days Required:", min_value=1, max_value=30, value=1)
                 reason = st.text_area("State Reason for Leave:")
                 
-                if st.button("Apply Now (Submit Request)", use_container_width=True):
+                # 🛑 فکس: آٹو سبمٹ کو روکنے کے لیے کنڈیشنل لاجک (یہ بٹن کلک پر ہی ٹریگر ہوگا)
+                submit_clicked = st.button("Apply Now (Submit Request)", use_container_width=True)
+                
+                if submit_clicked:
                     leave_key = "CL" if "Casual" in leave_type else "Sick" if "Sick" in leave_type else "Annual" if "Annual" in leave_type else "CO"
                     if int(w_data.get(leave_key, 0)) >= leave_days:
+                        
                         new_req = {
-                            "id": str(len(st.session_state.leave_requests) + 1),
+                            "id": str(w_data.get("id", "")), 
                             "worker": str(current_worker), "leave_type": str(leave_key), "days": int(leave_days),
-                            "date_from": str(date_from), "date_to": str(date_to), "reason": str(reason),
+                            "date_from": str(date_from), "date_to": str(date_to), "reason": str(reason if reason else "-"),
                             "applied_on": str(date.today()), "status": "Pending"
                         }
+                        
+                        # شیٹ پر صرف تبھی جائے گا جب واقعی بٹن پریس ہوا ہو گا
                         if sync_data_to_sheet(new_req, "Requests"):
                             if "leave_requests" in st.session_state:
                                 del st.session_state["leave_requests"]
-                            st.success("✅ Application submitted and synced to Cloud!")
+                            st.success("✅ Application submitted and synced to Cloud with Worker ID!")
                             st.rerun()
                     else:
                         st.error("❌ Request Rejected: Insufficient leave balance!")
                         
             with col_right_profile:
-                st.html("### 🌟 Worker Corporate Profile")
+                st.markdown("### 🌟 Worker Corporate Profile")
                 display_worker_photo(w_data.get("photo"))
                 st.write(f"👤 **Name:** {current_worker}")
                 st.write(f"🏭 **Department:** {w_data.get('department', 'STORE')}")
@@ -478,7 +484,6 @@ else:
                                 st.success(f"💾 Profile saved permanently!")
                                 st.rerun()
                                 
-                # 🔥 PERMANENT FULL ROW DELETE MODULE 🔥
                 with col_del_side:
                     st.html("<h4 style='color:#b91c1c;'>🗑️ Delete Worker Profile</h4>")
                     st.markdown("کسی بھی ورکر کو ڈیٹا بیس سے مکمل طور پر خارج کرنے کے لیے نیچے سے نام منتخب کریں:")
@@ -507,16 +512,29 @@ else:
                     edit_worker_name = st.selectbox("Select Worker to Edit:", ["Select Worker"] + list(st.session_state.workers_dict.keys()))
                     if edit_worker_name != "Select Worker":
                         current_w_data = st.session_state.workers_dict[edit_worker_name]
+                        
+                        current_salary = str(current_w_data.get("salary", "0")).strip()
+                        current_end_date_str = str(current_w_data.get("end_date", "-")).strip()
+                        
+                        try:
+                            default_end_date = datetime.strptime(current_end_date_str, "%Y-%m-%d").date()
+                        except:
+                            default_end_date = date.today()
+                        
                         col_e1, col_e2, col_e3 = st.columns(3)
                         with col_e1:
                             edit_id = st.text_input("Worker ID:", value=current_w_data.get("id", ""))
                             edit_father = st.text_input("Father Name:", value=current_w_data.get("father_name", ""))
+                            edit_salary = st.text_input("Monthly Salary (Rs.):", value=current_salary)
                         with col_e2:
                             edit_cnic = st.text_input("CNIC Number:", value=current_w_data.get("cnic", ""))
                             edit_mobile = st.text_input("Mobile Number:", value=current_w_data.get("mobile", ""))
+                            edit_end = st.date_input("End of Date (Retirement/Left):", value=default_end_date, min_value=date(1980,1,1))
                         with col_e3:
                             edit_dept = st.text_input("Department:", value=current_w_data.get("department", "STORE"))
                         
+                        st.write("---")
+                        st.html("<h5>📊 Adjust Leave Balances</h5>")
                         col_eb1, col_eb2, col_eb3, col_eb4 = st.columns(4)
                         with col_eb1: edit_cl = st.number_input("Casual (CL):", value=int(current_w_data.get("CL", 0)), key="e_cl")
                         with col_eb2: edit_sl = st.number_input("Sick (SL):", value=int(current_w_data.get("Sick", 0)), key="e_sl")
@@ -525,16 +543,26 @@ else:
                         
                         if st.button("Update Profile Changes", use_container_width=True):
                             updated_payload = {
-                                "name": str(edit_worker_name), "id": str(edit_id), "cnic": str(edit_cnic), "father_name": str(edit_father),
-                                "mobile": str(edit_mobile), "salary": int(current_w_data.get('salary', 0)),
-                                "joining_date": str(current_w_data.get('joining_date', '')), "end_date": str(current_w_data.get('end_date', '')), "department": str(edit_dept),
-                                "password": str(edit_cnic), "photo": str(current_w_data.get('photo', '')),
-                                "CL": int(edit_cl), "Sick": int(edit_sl), "Annual": int(edit_al), "CO": int(edit_co)
+                                "name": str(edit_worker_name), 
+                                "id": str(edit_id), 
+                                "cnic": str(edit_cnic), 
+                                "father_name": str(edit_father),
+                                "mobile": str(edit_mobile), 
+                                "salary": int(edit_salary) if str(edit_salary).isdigit() else 0,
+                                "joining_date": str(current_w_data.get('joining_date', '')), 
+                                "end_date": str(edit_end),
+                                "department": str(edit_dept),
+                                "password": str(edit_cnic), 
+                                "photo": str(current_w_data.get('photo', '')),
+                                "CL": int(edit_cl), 
+                                "Sick": int(edit_sl), 
+                                "Annual": int(edit_al), 
+                                "CO": int(edit_co)
                             }
                             if sync_data_to_sheet(updated_payload, "Worker"):
                                 if "workers_dict" in st.session_state:
                                     del st.session_state["workers_dict"]
-                                st.success("✅ Changes saved successfully.")
+                                st.success(f"✅ {edit_worker_name} کا ریکارڈ کامیابی سے اپڈیٹ ہو گیا ہے!")
                                 st.rerun()
 
             # TAB 3: LEAVE REQUESTS QUEUE
@@ -547,7 +575,7 @@ else:
                 else:
                     for idx, req in enumerate(pending_reqs):
                         with st.container(border=True):
-                            st.write(f"👤 **Worker Name:** {req['worker']} | 📋 **Leave Category:** {req['leave_type']} ({req['days']} Days)")
+                            st.write(f"👤 **Worker Name:** {req['worker']} (ID: {req['id']}) | 📋 **Leave Category:** {req['leave_type']} ({req['days']} Days)")
                             st.write(f"📅 **Duration:** {req['date_from']} to {req['date_to']} | 📝 **Reason:** {req['reason']}")
                             col_app, col_rej = st.columns(2)
                             
