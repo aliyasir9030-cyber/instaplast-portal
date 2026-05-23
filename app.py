@@ -8,13 +8,16 @@ import os
 st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layout="wide")
 
 ADMIN_PASSWORD = "admin123"  
-DB_FILE = "database.json"
 
-# --- AUTOMATIC DATA STORAGE & PERSISTENT LOGIN LOGIC ---
+# --- 📌 ڈیٹا کو مستقل محفوظ (LOCK) کرنے کی لاجک ---
+# یہ کوڈ خود بخود آپ کے کمپیوٹر کے ڈیسک ٹاپ کا پاتھ ڈھونڈ کر فائل وہاں بنائے گا
+DESKTOP_PATH = os.path.join(os.path.expanduser("~"), "Desktop")
+DB_FILE = os.path.join(DESKTOP_PATH, "instaplast_database.json")
+
 def load_local_database():
     if os.path.exists(DB_FILE):
         try:
-            with open(DB_FILE, "r") as f:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 st.session_state.workers_dict = data.get("workers", {})
                 st.session_state.leave_requests = data.get("requests", [])
@@ -28,6 +31,7 @@ def load_local_database():
         except Exception as e:
             pass
     
+    # اگر پہلی بار چل رہا ہو اور فائل نہ ہو
     if "workers_dict" not in st.session_state:
         st.session_state.workers_dict = {}
     if "leave_requests" not in st.session_state:
@@ -41,17 +45,16 @@ def save_local_database():
     db_export = {
         "workers": st.session_state.workers_dict,
         "requests": st.session_state.leave_requests,
-        # لاگ ان کی صورتحال کو پرماننٹ فائل میں سیو کرنے کے لیے
         "active_worker_session": st.session_state.get("logged_in_user", None),
         "active_admin_session": st.session_state.get("admin_authenticated", False)
     }
     try:
-        with open(DB_FILE, "w") as f:
-            json.dump(db_export, f, indent=4)
+        with open(DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(db_export, f, indent=4, ensure_ascii=False)
     except Exception as e:
-        st.error(f"Error saving data: {e}")
+        st.error(f"Error saving data to Desktop: {e}")
 
-# Load database and sync state automatically
+# خود کار طریقے سے ڈیٹا لوڈ کرنا
 load_local_database()
 
 if "lang" not in st.session_state:
@@ -129,11 +132,8 @@ is_urdu = (st.session_state.lang == "Urdu")
 
 # Sidebar Navigation Control
 st.sidebar.title("🔒 Gate Panel" if not is_urdu else "🔒 گیٹ پینل")
-def on_role_change():
-    pass
-
 role_options = ["Worker", "Admin Portal"] if not is_urdu else ["ورکر پورٹل (Worker)", "ایڈمن پورٹل (Admin)"]
-access_role = st.sidebar.selectbox("Select Access Role:" if not is_urdu else "رسائی کا طریقہ منتخب کریں:", role_options, on_change=on_role_change)
+access_role = st.sidebar.selectbox("Select Access Role:" if not is_urdu else "رسائی کا طریقہ منتخب کریں:", role_options)
 st.sidebar.divider()
 st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v15.0")
 
@@ -145,7 +145,6 @@ def render_profile_subdata(w_name, data, unique_key):
     st.markdown("### 📋 Detailed Profile Modules" if not is_urdu else "### 📋 پروفائل کی تفصیلات")
     
     cb1, cb2, cb3, cb4, cb5 = st.columns(5)
-    
     with cb1: btn_personal = st.button("👤 Personal Data" if not is_urdu else "👤 ذاتی معلومات", key=f"btn_p_{unique_key}", use_container_width=True)
     with cb2: btn_job = st.button("💼 Job Data" if not is_urdu else "💼 نوکری کا ریکارڈ", key=f"btn_j_{unique_key}", use_container_width=True)
     with cb3: btn_time = st.button("⏱️ Time Management" if not is_urdu else "⏱️ حاضری و اوقات", key=f"btn_t_{unique_key}", use_container_width=True)
@@ -224,7 +223,6 @@ if not is_admin_mode:
     if not st.session_state.workers_dict:
         st.warning("⚠️ No worker profiles found in the system database. Please switch to Admin Portal." if not is_urdu else "⚠️ سسٹم میں کوئی ورکر موجود نہیں ہے۔ براہ کرم ایڈمن پورٹل سے ورکر رجسٹر کریں۔")
     else:
-        # Check if worker is logged in securely
         if st.session_state.logged_in_user is None:
             worker_list = list(st.session_state.workers_dict.keys())
             col_sel1, col_sel2 = st.columns(2)
@@ -238,7 +236,7 @@ if not is_admin_mode:
                 w_data = st.session_state.workers_dict[selected_worker]
                 if str(password_input).strip() == str(w_data.get("cnic", "")).strip():
                     st.session_state.logged_in_user = selected_worker
-                    save_local_database()  # ڈیٹا بیس فائل میں لاگ ان سٹیٹ سیو کریں
+                    save_local_database()  
                     st.success("✅ Logged in successfully!")
                     st.rerun()
                 else:
@@ -246,7 +244,6 @@ if not is_admin_mode:
         else:
             current_worker = st.session_state.logged_in_user
             
-            # اگر ورکر لسٹ سے وہ نام ڈیلیٹ ہو چکا ہو تو سیشن کلیئر کریں
             if current_worker not in st.session_state.workers_dict:
                 st.session_state.logged_in_user = None
                 save_local_database()
@@ -262,7 +259,7 @@ if not is_admin_mode:
                 btn_lbl = "🚪 Log Out of System" if not is_urdu else "🚪 اکاؤنٹ لاگ آؤٹ کریں"
                 if st.button(btn_lbl, use_container_width=True):
                     st.session_state.logged_in_user = None
-                    save_local_database()  # لاگ آؤٹ کی سٹیٹ کو فائل میں سیو کریں
+                    save_local_database()  
                     st.rerun()
                     
             st.divider()
@@ -383,7 +380,7 @@ else:
                             "CL": cl_q, "Sick": sl_q, "Annual": al_q, "CO": co_q
                         }
                         save_local_database()  
-                        st.success(f"💾 Profile for '{w_name}' saved permanently!")
+                        st.success(f"💾 Profile for '{w_name}' saved permanently to Desktop!")
                         st.rerun()
 
             # TAB 2: EDIT PROFILES
@@ -417,16 +414,25 @@ else:
                         with col_eb3: edit_al = st.number_input("Annual Leave (AL):", value=int(current_w_data.get("Annual", 0)), key="e_al")
                         with col_eb4: edit_co = st.number_input("Compensation (CO):", value=int(current_w_data.get("CO", 0)), key="e_co")
                         
+                        # ورکر پروفائل ڈیلیٹ کرنے کا آپشن
+                        st.divider()
+                        delete_worker = st.checkbox("⚠️ Check this box to DELETE this worker permanently from the system")
+                        
                         if st.button("Update Profile & Save Changes", use_container_width=True):
-                            photo_str = get_image_base64(edit_photo) if edit_photo else current_w_data.get("photo")
-                            st.session_state.workers_dict[edit_worker_name] = {
-                                "id": edit_id, "cnic": edit_cnic, "father_name": edit_father, "mobile": edit_mobile,
-                                "salary": edit_salary, "joining_date": str(edit_joining), "end_date": str(edit_end),
-                                "department": edit_dept, "password": edit_cnic, "photo": photo_str, 
-                                "CL": edit_cl, "Sick": edit_sl, "Annual": edit_al, "CO": edit_co
-                            }
-                            save_local_database()  
-                            st.success("✅ Changes saved and data file auto-updated successfully.")
+                            if delete_worker:
+                                del st.session_state.workers_dict[edit_worker_name]
+                                save_local_database()
+                                st.success(f"❌ Profile for '{edit_worker_name}' deleted permanently!")
+                            else:
+                                photo_str = get_image_base64(edit_photo) if edit_photo else current_w_data.get("photo")
+                                st.session_state.workers_dict[edit_worker_name] = {
+                                    "id": edit_id, "cnic": edit_cnic, "father_name": edit_father, "mobile": edit_mobile,
+                                    "salary": edit_salary, "joining_date": str(edit_joining), "end_date": str(edit_end),
+                                    "department": edit_dept, "password": edit_cnic, "photo": photo_str, 
+                                    "CL": edit_cl, "Sick": edit_sl, "Annual": edit_al, "CO": edit_co
+                                }
+                                save_local_database()  
+                                st.success("✅ Changes saved and data file auto-updated successfully on Desktop.")
                             st.rerun()
 
             # TAB 3: LEAVE REQUESTS QUEUE
@@ -438,6 +444,7 @@ else:
                     for req in pending_reqs:
                         with st.container(border=True):
                             st.write(f"👤 **Worker Name:** {req['worker']} | 📋 **Leave Category:** {req['leave_type']} ({req['days']} Days)")
+                            st.write(f"📅 **Duration:** {req['date_from']} to {req['date_to']} | 📝 **Reason:** {req['reason']}")
                             col_app, col_rej = st.columns(2)
                             with col_app:
                                 if st.button("✅ Approve Request", key=f"app_{req['id']}", use_container_width=True):
