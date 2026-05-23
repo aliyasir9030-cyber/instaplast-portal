@@ -82,7 +82,6 @@ def sync_data_to_sheet(payload_data, sheet_name):
         if response.status_code == 200:
             res_json = json.loads(response.text)
             if res_json.get("status") == "success":
-                st.success("✅ Google Sheet Sync Successful!")
                 return True
         st.error("❌ Apps Script Sync Error.")
         return False
@@ -453,6 +452,7 @@ else:
                             col_app, col_rej = st.columns(2)
                             with col_app:
                                 if st.button("✅ Approve Request", key=f"app_{req['id']}", use_container_width=True):
+                                    # 1. Deduct leave quota from worker's profile
                                     if req['worker'] in st.session_state.workers_dict:
                                         st.session_state.workers_dict[req['worker']][req['leave_type']] -= int(req['days'])
                                         w_info = st.session_state.workers_dict[req['worker']]
@@ -466,25 +466,23 @@ else:
                                         }
                                         sync_data_to_sheet(worker_payload, "Worker")
                                     
+                                    # 2. Hard-remove item from current session memory immediately 
+                                    st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["id"] != req["id"]]
+                                    
+                                    # 3. Mark approved and upload to Cloud database
                                     req["status"] = "Approved"
-                                    # Update local state immediately so it clears from the screen instantly
-                                    for r in st.session_state.leave_requests:
-                                        if r["id"] == req["id"]:
-                                            r["status"] = "Approved"
-                                            
-                                    if sync_data_to_sheet(req, "Requests"):
-                                        st.rerun()
+                                    sync_data_to_sheet(req, "Requests")
+                                    st.rerun()
                                         
                             with col_rej:
                                 if st.button("❌ Reject Request", key=f"rej_{req['id']}", use_container_width=True):
+                                    # 1. Hard-remove item from current session memory immediately
+                                    st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["id"] != req["id"]]
+                                    
+                                    # 2. Mark rejected and upload to Cloud database
                                     req["status"] = "Rejected"
-                                    # Update local state immediately so it clears from the screen instantly
-                                    for r in st.session_state.leave_requests:
-                                        if r["id"] == req["id"]:
-                                            r["status"] = "Rejected"
-                                            
-                                    if sync_data_to_sheet(req, "Requests"):
-                                        st.rerun()
+                                    sync_data_to_sheet(req, "Requests")
+                                    st.rerun()
 
             # TAB 4: COMPLETE SHEETS RECORD
             with records_tab:
