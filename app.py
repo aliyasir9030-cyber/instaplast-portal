@@ -195,4 +195,4 @@ elif role == "Admin":
                 }])
                 updated_workers = pd.concat([workers_df, new_worker], ignore_index=True)
                 save_sheet_data(updated_workers, "Worker")
-                ```python st.rerun()
+                 st.rerun()
