@@ -17,62 +17,61 @@ SHEET_ID = "1UjhsblmHa9UoUsbkx9-OYc98rXRcqToTJDdBAHZDciI"
 GSHEET_WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Worker"
 GSHEET_REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Requests"
 
-# --- 📥 CLOUD DATA LOADING LOGIC ---
+# --- 📥 CLOUD DATA LOADING LOGIC (With Dynamic Force Refresh Support) ---
 def load_cloud_database():
     if "workers_dict" not in st.session_state:
-        st.session_state.workers_dict = {}
+        try:
+            workers_df = pd.read_csv(GSHEET_WORKER_URL)
+            temp_workers = {}
+            if not workers_df.empty:
+                for _, row in workers_df.iterrows():
+                    w_name = str(row.get('name', '')).strip()
+                    if w_name:
+                        temp_workers[w_name] = {
+                            "id": str(row.get('id', '')).replace('.0', '').strip(),
+                            "cnic": str(row.get('cnic', '')).replace('.0', '').strip(),
+                            "father_name": str(row.get('father_name', 'N/A')),
+                            "mobile": str(row.get('mobile', 'N/A')).replace('.0', '').strip(),
+                            "salary": str(row.get('salary', '0')),
+                            "joining_date": str(row.get('joining_date', '')),
+                            "end_date": str(row.get('end_date', '-')),
+                            "department": str(row.get('department', 'STORE')),
+                            "password": str(row.get('password', '123')),
+                            "photo": str(row.get('photo', '')) if pd.notna(row.get('photo')) else "",
+                            "CL": int(row.get('CL', 0)) if pd.notna(row.get('CL')) else 0,
+                            "Sick": int(row.get('Sick', 0)) if pd.notna(row.get('Sick')) else 0,
+                            "Annual": int(row.get('Annual', 0)) if pd.notna(row.get('Annual')) else 0,
+                            "CO": int(row.get('CO', 0)) if pd.notna(row.get('CO')) else 0
+                        }
+            st.session_state.workers_dict = temp_workers
+        except:
+            st.session_state.workers_dict = {}
+
     if "leave_requests" not in st.session_state:
-        st.session_state.leave_requests = []
+        try:
+            requests_df = pd.read_csv(GSHEET_REQUESTS_URL)
+            temp_reqs = []
+            if not requests_df.empty:
+                for idx, row in requests_df.iterrows():
+                    temp_reqs.append({
+                        "id": str(row.get('id', idx+1)).replace('.0', '').strip(),
+                        "worker": str(row.get('worker', '')).strip(),
+                        "leave_type": str(row.get('leave_type', 'CL')).strip(),
+                        "days": int(row.get('days', 1)) if pd.notna(row.get('days')) else 1,
+                        "date_from": str(row.get('date_from', '')),
+                        "date_to": str(row.get('date_to', '')),
+                        "reason": str(row.get('reason', '-')),
+                        "applied_on": str(row.get('applied_on', '')),
+                        "status": str(row.get('status', 'Pending')).strip()
+                    })
+            st.session_state.leave_requests = temp_reqs
+        except:
+            st.session_state.leave_requests = []
+
     if "logged_in_user" not in st.session_state:
         st.session_state.logged_in_user = None
     if "admin_authenticated" not in st.session_state:
         st.session_state.admin_authenticated = False
-
-    try:
-        # Load Workers from Google Sheet CSV
-        workers_df = pd.read_csv(GSHEET_WORKER_URL)
-        if not workers_df.empty:
-            temp_workers = {}
-            for _, row in workers_df.iterrows():
-                w_name = str(row.get('name', '')).strip()
-                if w_name:
-                    temp_workers[w_name] = {
-                        "id": str(row.get('id', '')).replace('.0', '').strip(),
-                        "cnic": str(row.get('cnic', '')).replace('.0', '').strip(),
-                        "father_name": str(row.get('father_name', 'N/A')),
-                        "mobile": str(row.get('mobile', 'N/A')).replace('.0', '').strip(),
-                        "salary": str(row.get('salary', '0')),
-                        "joining_date": str(row.get('joining_date', '')),
-                        "end_date": str(row.get('end_date', '-')),
-                        "department": str(row.get('department', 'STORE')),
-                        "password": str(row.get('password', '123')),
-                        "photo": str(row.get('photo', '')) if pd.notna(row.get('photo')) else "",
-                        "CL": int(row.get('CL', 0)) if pd.notna(row.get('CL')) else 0,
-                        "Sick": int(row.get('Sick', 0)) if pd.notna(row.get('Sick')) else 0,
-                        "Annual": int(row.get('Annual', 0)) if pd.notna(row.get('Annual')) else 0,
-                        "CO": int(row.get('CO', 0)) if pd.notna(row.get('CO')) else 0
-                    }
-            st.session_state.workers_dict = temp_workers
-
-        # Load Leave Requests from Google Sheet CSV
-        requests_df = pd.read_csv(GSHEET_REQUESTS_URL)
-        if not requests_df.empty:
-            temp_reqs = []
-            for idx, row in requests_df.iterrows():
-                temp_reqs.append({
-                    "id": str(row.get('id', idx+1)).replace('.0', '').strip(),
-                    "worker": str(row.get('worker', '')).strip(),
-                    "leave_type": str(row.get('leave_type', 'CL')).strip(),
-                    "days": int(row.get('days', 1)) if pd.notna(row.get('days')) else 1,
-                    "date_from": str(row.get('date_from', '')),
-                    "date_to": str(row.get('date_to', '')),
-                    "reason": str(row.get('reason', '-')),
-                    "applied_on": str(row.get('applied_on', '')),
-                    "status": str(row.get('status', 'Pending')).strip()
-                })
-            st.session_state.leave_requests = temp_reqs
-    except Exception as e:
-        st.sidebar.error(f"⚠️ Live Data Fetch Notice: Connecting to Cloud...")
 
 # --- 📤 CLOUD DATA SYNC LOGIC (POST TO APPS SCRIPT) ---
 def sync_data_to_sheet(payload_data, sheet_name):
@@ -110,7 +109,7 @@ st.html("""
     
     /* Calendar Grid Styles */
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 15px; text-align: center; }
-    .calendar-header { font-weight: bold; background-color: #e2e8f0; padding: 8px; border-radius: 4px; color: #1e3a8a; }
+    .calendar-header { font-weight: bold; background-color: #1e3a8a; padding: 8px; border-radius: 4px; color: #ffffff; }
     .day-cell { padding: 12px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1; position: relative; min-height: 55px; }
     .day-p { background-color: #dcfce7; color: #15803d; border-color: #86efac; } /* Present */
     .day-a { background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5; } /* Absent */
@@ -139,12 +138,11 @@ def display_worker_photo(base64_str):
 def render_monthly_attendance_calendar(worker_name):
     st.html(f"<h4>📆 Monthly Attendance & Leave Grid ({datetime.now().strftime('%B %Y')})</h4>")
     
-    # Selection of Status types for display simulation
     col_legend1, col_legend2, col_legend3, col_legend4 = st.columns(4)
-    with col_legend1: st.markdown("🟢 **Present (P)**: Default Active Workdays")
+    with col_legend1: st.markdown("🟢 **Present (P)**: Active Workdays")
     with col_legend2: st.markdown("🔵 **Leave (L)**: Approved Factory Leaves")
-    with col_legend3: st.markdown("🔴 **Absent (A)**: Unexcused / Off Days")
-    with col_legend4: st.markdown("🟡 **Hold (H)**: Pending Status Check")
+    with col_legend3: st.markdown("🔴 **Absent (A)**: Unexcused / Sunday Offs")
+    with col_legend4: st.markdown("🟡 **Hold (H)**: Future Calendar Days")
 
     # Get approved leave dates for this specific worker
     approved_dates = set()
@@ -179,21 +177,20 @@ def render_monthly_attendance_calendar(worker_name):
         else:
             current_loop_date = date(year, month, day)
             
-            # Determine Status Logic
             if current_loop_date in approved_dates:
                 cell_class = "day-l"
                 status_label = "L"
                 l_count += 1
-            elif current_loop_date.weekday() == 6: # Sunday Default Absent/Off
+            elif current_loop_date.weekday() == 6: # Sunday Off
                 cell_class = "day-a"
                 status_label = "A"
                 a_count += 1
             elif current_loop_date > today:
-                cell_class = "day-h" # Future days on Hold
+                cell_class = "day-h"
                 status_label = "H"
                 h_count += 1
             else:
-                cell_class = "day-p" # Past week days Present
+                cell_class = "day-p"
                 status_label = "P"
                 p_count += 1
                 
@@ -202,12 +199,11 @@ def render_monthly_attendance_calendar(worker_name):
     grid_html += '</div>'
     st.html(grid_html)
     
-    # Metric view summary
     cm1, cm2, cm3, cm4 = st.columns(4)
-    with cm1: st.metric("Total Presents (P)", f"{p_count} Days")
-    with cm2: st.metric("Total Leaves (L)", f"{l_count} Days")
-    with cm3: st.metric("Total Absents/Off (A)", f"{a_count} Days")
-    with cm4: st.metric("Total On Hold (H)", f"{h_count} Days")
+    with cm1: st.metric("Presents (P)", f"{p_count} Days")
+    with cm2: st.metric("Leaves (L)", f"{l_count} Days")
+    with cm3: st.metric("Absents / Off (A)", f"{a_count} Days")
+    with cm4: st.metric("Future Hold (H)", f"{h_count} Days")
 
 # --- TOP BAR: BRANDING ---
 st.html("""
@@ -337,7 +333,7 @@ if not is_admin_mode:
                     
             st.divider()
             
-            # --- 📆 CALENDAR GRID ON WORKER DISPLAY ---
+            # --- 📆 MONTHLY CALENDAR GRID ON WORKER DISPLAY ---
             with st.container(border=True):
                 render_monthly_attendance_calendar(current_worker)
                 
@@ -376,6 +372,8 @@ if not is_admin_mode:
                             "applied_on": str(date.today()), "status": "Pending"
                         }
                         if sync_data_to_sheet(new_req, "Requests"):
+                            if "leave_requests" in st.session_state:
+                                del st.session_state["leave_requests"]
                             st.success("✅ Application submitted and synced to Cloud!")
                             st.rerun()
                     else:
@@ -439,44 +437,74 @@ else:
                 "👥 Register & Delete Workers", "✏️ Edit Worker Profiles", "📥 Leave Requests Queue", "📊 Complete Factory Sheets"
             ])
             
-            # TAB 1: REGISTER WORKERS
+            # TAB 1: REGISTER & DELETE WORKERS
             with admin_tab:
-                st.html("<h4>➕ Register New Factory Worker Profile</h4>")
-                col_p1, col_p2, col_p3 = st.columns(3)
-                with col_p1:
-                    w_id = st.text_input("Worker ID / Roll No:")
-                    w_name = st.text_input("Worker Full Name:")
-                    w_father = st.text_input("Father's Name:")
-                with col_p2:
-                    w_cnic = st.text_input("ID Card Number / CNIC:")
-                    w_mobile = st.text_input("Mobile / WhatsApp Number:")
-                    w_salary = st.text_input("Monthly Salary (Rs.):", value="0")
-                with col_p3:
-                    w_dept = st.text_input("Department Name (e.g., Production, Store):", value="STORE")
-                    w_joining = st.date_input("Date of Joining Company:", value=date.today(), min_value=date(1980,1,1))
-                    w_end = st.date_input("Date of End (Contract End):", value=date.today() + timedelta(days=365), min_value=date(1980,1,1))
-                    w_photo = st.file_uploader("Upload Worker Photo:", type=["jpg", "jpeg", "png"])
+                col_reg_side, col_del_side = st.columns([1.4, 0.6])
                 
-                st.html("<h5>📊 Initial Leave Quota Allocation</h5>")
-                col_l1, col_l2, col_l3, col_l4 = st.columns(4)
-                with col_l1: cl_q = st.number_input("Casual Leave (CL):", value=0, key="reg_cl")
-                with col_l2: sl_q = st.number_input("Sick Leave (SL):", value=0, key="reg_sl")
-                with col_l3: al_q = st.number_input("Annual Leave (AL):", value=0, key="reg_al")
-                with col_l4: co_q = st.number_input("Compensation (CO):", value=0, key="reg_co")
-                
-                if st.button("Save Profile & Commit Registry", use_container_width=True):
-                    if w_name and w_cnic and w_id:
-                        photo_b64 = get_image_base64(w_photo)
-                        worker_payload = {
-                            "name": str(w_name), "id": str(w_id), "cnic": str(w_cnic), "father_name": str(w_father),
-                            "mobile": str(w_mobile), "salary": int(w_salary) if w_salary.isdigit() else 0,
-                            "joining_date": str(w_joining), "end_date": str(w_end), "department": str(w_dept),
-                            "password": str(w_cnic), "photo": str(photo_b64),
-                            "CL": int(cl_q), "Sick": int(sl_q), "Annual": int(al_q), "CO": int(co_q)
-                        }
-                        if sync_data_to_sheet(worker_payload, "Worker"):
-                            st.success(f"💾 Profile saved permanently!")
-                            st.rerun()
+                with col_reg_side:
+                    st.html("<h4>➕ Register New Factory Worker Profile</h4>")
+                    col_p1, col_p2, col_p3 = st.columns(3)
+                    with col_p1:
+                        w_id = st.text_input("Worker ID / Roll No:")
+                        w_name = st.text_input("Worker Full Name:")
+                        w_father = st.text_input("Father's Name:")
+                    with col_p2:
+                        w_cnic = st.text_input("ID Card Number / CNIC:")
+                        w_mobile = st.text_input("Mobile / WhatsApp Number:")
+                        w_salary = st.text_input("Monthly Salary (Rs.):", value="0")
+                    with col_p3:
+                        w_dept = st.text_input("Department Name (e.g., Production, Store):", value="STORE")
+                        w_joining = st.date_input("Date of Joining Company:", value=date.today(), min_value=date(1980,1,1))
+                        w_end = st.date_input("Date of End (Contract End):", value=date.today() + timedelta(days=365), min_value=date(1980,1,1))
+                        w_photo = st.file_uploader("Upload Worker Photo:", type=["jpg", "jpeg", "png"])
+                    
+                    st.html("<h5>📊 Initial Leave Quota Allocation</h5>")
+                    col_l1, col_l2, col_l3, col_l4 = st.columns(4)
+                    with col_l1: cl_q = st.number_input("Casual Leave (CL):", value=0, key="reg_cl")
+                    with col_l2: sl_q = st.number_input("Sick Leave (SL):", value=0, key="reg_sl")
+                    with col_l3: al_q = st.number_input("Annual Leave (AL):", value=0, key="reg_al")
+                    with col_l4: co_q = st.number_input("Compensation (CO):", value=0, key="reg_co")
+                    
+                    if st.button("Save Profile & Commit Registry", use_container_width=True):
+                        if w_name and w_cnic and w_id:
+                            photo_b64 = get_image_base64(w_photo)
+                            worker_payload = {
+                                "name": str(w_name), "id": str(w_id), "cnic": str(w_cnic), "father_name": str(w_father),
+                                "mobile": str(w_mobile), "salary": int(w_salary) if w_salary.isdigit() else 0,
+                                "joining_date": str(w_joining), "end_date": str(w_end), "department": str(w_dept),
+                                "password": str(w_cnic), "photo": str(photo_b64),
+                                "CL": int(cl_q), "Sick": int(sl_q), "Annual": int(al_q), "CO": int(co_q)
+                            }
+                            if sync_data_to_sheet(worker_payload, "Worker"):
+                                if "workers_dict" in st.session_state:
+                                    del st.session_state["workers_dict"]
+                                st.success(f"💾 Profile saved permanently!")
+                                st.rerun()
+                                
+                # 🔥 NEW PERMANENT DELETE MODULE 🔥
+                with col_del_side:
+                    st.html("<h4 style='color:#b91c1c;'>🗑️ Delete Worker Profile</h4>")
+                    st.markdown("کسی بھی ورکر کو ڈیٹا بیس سے مکمل طور پر خارج کرنے کے لیے نیچے سے نام منتخب کریں:")
+                    if st.session_state.workers_dict:
+                        delete_target = st.selectbox("Select Profile to Remove:", ["Select Worker"] + list(st.session_state.workers_dict.keys()), key="del_tgt")
+                        if delete_target != "Select Worker":
+                            st.warning(f"⚠️ انتباہ: '{delete_target}' کو ڈیلیٹ کرنے سے ان کا سارا ریکارڈ فائل سے ہمیشہ کے لیے ختم ہو جائے گا۔")
+                            
+                            # Secure Confirmation Checkbox
+                            confirm_del = st.checkbox("جی ہاں، میں اس ورکر کو مستقل حذف کرنا چاہتا ہوں۔", key="conf_del")
+                            if st.button("❌ Delete Worker Permanently", use_container_width=True, disabled=not confirm_del):
+                                # Payload to send delete instruction to script
+                                delete_payload = {"name": str(delete_target), "action": "DELETE"}
+                                if sync_data_to_sheet(delete_payload, "Worker"):
+                                    # Force Reset Local Session State for Immediate UI Clearing
+                                    if "workers_dict" in st.session_state:
+                                        del st.session_state["workers_dict"]
+                                    if "leave_requests" in st.session_state:
+                                        del st.session_state["leave_requests"]
+                                    st.success(f"🗑️ '{delete_target}' کا پروفائل کامیابی سے کلیئر کر دیا گیا ہے۔")
+                                    st.rerun()
+                    else:
+                        st.info("No active profiles loaded to delete.")
 
             # TAB 2: EDIT PROFILES
             with edit_tab:
@@ -510,18 +538,20 @@ else:
                                 "CL": int(edit_cl), "Sick": int(edit_sl), "Annual": int(edit_al), "CO": int(edit_co)
                             }
                             if sync_data_to_sheet(updated_payload, "Worker"):
+                                if "workers_dict" in st.session_state:
+                                    del st.session_state["workers_dict"]
                                 st.success("✅ Changes saved successfully.")
                                 st.rerun()
 
-            # TAB 3: LEAVE REQUESTS QUEUE (With Active Pop/Clear Action)
+            # TAB 3: LEAVE REQUESTS QUEUE (With Active Force Reset and Clear Fix)
             with requests_tab:
                 st.html("<h4>📥 Incoming Leave Applications Queue</h4>")
-                pending_reqs = [r for r in st.session_state.leave_requests if r["status"] == "Pending"]
+                pending_reqs = [r for r in st.session_state.leave_requests if r["status"].strip() == "Pending"]
+                
                 if not pending_reqs: 
                     st.info("🛋️ No pending leave applications.")
                 else:
-                    # Loop using static list to prevent screen stickiness
-                    for idx, req in enumerate(list(pending_reqs)):
+                    for idx, req in enumerate(pending_reqs):
                         with st.container(border=True):
                             st.write(f"👤 **Worker Name:** {req['worker']} | 📋 **Leave Category:** {req['leave_type']} ({req['days']} Days)")
                             st.write(f"📅 **Duration:** {req['date_from']} to {req['date_to']} | 📝 **Reason:** {req['reason']}")
@@ -542,17 +572,28 @@ else:
                                         }
                                         sync_data_to_sheet(worker_payload, "Worker")
                                     
-                                    # Active Local State Pop to force clear UI instantly
                                     req["status"] = "Approved"
                                     sync_data_to_sheet(req, "Requests")
-                                    st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["id"] != req["id"]]
+                                    
+                                    # 🔥 FORCE RESET CLEAR FOR LIVE REFRESH 🔥
+                                    if "leave_requests" in st.session_state:
+                                        del st.session_state["leave_requests"]
+                                    if "workers_dict" in st.session_state:
+                                        del st.session_state["workers_dict"]
+                                        
                                     st.rerun()
                                         
                             with col_rej:
                                 if st.button("❌ Reject Request", key=f"rej_{req['id']}_{idx}", use_container_width=True):
                                     req["status"] = "Rejected"
                                     sync_data_to_sheet(req, "Requests")
-                                    st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["id"] != req["id"]]
+                                    
+                                    # 🔥 FORCE RESET CLEAR FOR LIVE REFRESH 🔥
+                                    if "leave_requests" in st.session_state:
+                                        del st.session_state["leave_requests"]
+                                    if "workers_dict" in st.session_state:
+                                        del st.session_state["workers_dict"]
+                                        
                                     st.rerun()
 
             # TAB 4: COMPLETE SHEETS RECORD & ADMIN CALENDAR VIEW
