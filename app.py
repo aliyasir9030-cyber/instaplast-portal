@@ -481,7 +481,7 @@ else:
                                 st.success(f"💾 Profile saved permanently!")
                                 st.rerun()
                                 
-                # 🔥 NEW PERMANENT DELETE MODULE 🔥
+                # 🔥 PERMANENT DELETE MODULE 🔥
                 with col_del_side:
                     st.html("<h4 style='color:#b91c1c;'>🗑️ Delete Worker Profile</h4>")
                     st.markdown("کسی بھی ورکر کو ڈیٹا بیس سے مکمل طور پر خارج کرنے کے لیے نیچے سے نام منتخب کریں:")
@@ -575,7 +575,7 @@ else:
                                     req["status"] = "Approved"
                                     sync_data_to_sheet(req, "Requests")
                                     
-                                    # 🔥 FORCE RESET CLEAR FOR LIVE REFRESH 🔥
+                                    # FORCE RESET CLEAR FOR LIVE REFRESH
                                     if "leave_requests" in st.session_state:
                                         del st.session_state["leave_requests"]
                                     if "workers_dict" in st.session_state:
@@ -588,7 +588,7 @@ else:
                                     req["status"] = "Rejected"
                                     sync_data_to_sheet(req, "Requests")
                                     
-                                    # 🔥 FORCE RESET CLEAR FOR LIVE REFRESH 🔥
+                                    # FORCE RESET CLEAR FOR LIVE REFRESH
                                     if "leave_requests" in st.session_state:
                                         del st.session_state["leave_requests"]
                                     if "workers_dict" in st.session_state:
@@ -596,7 +596,7 @@ else:
                                         
                                     st.rerun()
 
-            # TAB 4: COMPLETE SHEETS RECORD & ADMIN CALENDAR VIEW
+            # TAB 4: COMPLETE SHEETS RECORD & ADMIN CALENDAR VIEW (FIXED KEY ERROR)
             with records_tab:
                 st.html("<h4>📊 Factory Workers Sheets & Calendar Logs</h4>")
                 search_query = st.text_input("🔍 Search Worker to view their Full Sheet or Calendar:", "").lower()
@@ -607,4 +607,6 @@ else:
                             with st.expander(f"📋 Profile Logs: {name} (ID: {details.get('id', 'N/A')})"):
                                 render_monthly_attendance_calendar(name)
                                 st.write("---")
-                                render_profile_subdata(name, details, f"adm_grid_{details.get('id')}")
+                                # 🔥 FIX: Used worker name instead of ID to avoid 'nan' duplicate key error 🔥
+                                clean_key = name.replace(" ", "_").lower()
+                                render_profile_subdata(name, details, f"adm_grid_{clean_key}")
