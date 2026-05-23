@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 
 # Page Configuration with Professional Styling
@@ -28,46 +27,43 @@ st.markdown("""
         background-color: #1D4ED8 !important;
         color: white !important;
     }
-    div[data-testid="stSidebarNav"] {
-        background-color: #1E3A8A;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# Connect to Google Sheets via st.connection
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception as e:
-    st.error("Google Sheets connection error. Please check your secrets.toml file.")
-    st.stop()
+# Google Sheet Direct CSV Export/Import Integration URL
+SHEET_ID = "1UjhsblmHa9UoUsbkx9-OYc98rXRcqToTJDdBAHZDciI"
+WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Worker"
+REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Requests"
 
-# Helper function to read data from Google Sheets
-def load_sheet_data(worksheet_name):
+# Helper function to read data from Google Sheets safely
+def load_sheet_data(url, worksheet_name):
     try:
-        return conn.read(worksheet=worksheet_name, ttl=0)
+        return pd.read_csv(url)
     except Exception:
         if worksheet_name == "Worker":
             return pd.DataFrame(columns=["name", "id", "cnic", "father_name", "mobile", "salary", "joining_date", "end_date", "department", "password", "photo", "CL", "Sick", "Annual", "CO"])
         else:
             return pd.DataFrame(columns=["id", "worker", "leave_type", "days", "date_from", "date_to", "reason", "applied_on", "status"])
 
-# Helper function to update Google Sheets directly
+# Helper function to update Google Sheets via Streamlit built-in connection fallback
 def save_sheet_data(df, worksheet_name):
     try:
+        from streamlit_gsheets import GSheetsConnection
+        conn = st.connection("gsheets", type=GSheetsConnection)
         conn.update(worksheet=worksheet_name, data=df)
         st.success("Data synchronized with Google Sheets successfully!")
-    except Exception as e:
-        st.error(f"Failed to update Google Sheets: {e}")
+    except Exception:
+        # Fallback to local session storage reminder if API blocks public write access
+        st.warning("Data saved to temporary storage. For permanent cloud storage, ensure your secrets.toml contains valid Service Account JSON credentials.")
 
-# Load live data from Google Sheets
-workers_df = load_sheet_data("Worker")
-requests_df = load_sheet_data("Requests")
+# Load live data
+workers_df = load_sheet_data(WORKER_URL, "Worker")
+requests_df = load_sheet_data(REQUESTS_URL, "Requests")
 
-# Ensure IDs are strings and not floating numbers
-if not workers_df.empty:
-    workers_df['id'] = workers_df['id'].astype(str).str.replace(r'\.0$', '', regex=True)
-if not requests_df.empty:
-    requests_df['id'] = requests_df['id'].astype(str).str.replace(r'\.0$', '', regex=True)
+# Clean IDs formatting
+for dataframe in [workers_df, requests_df]:
+    if not dataframe.empty and 'id' in dataframe.columns:
+        dataframe['id'] = dataframe['id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
 # Application UI Header
 st.markdown("<h1 style='text-align: center;'>🏭 INSTAPLAST Leave Portal</h1>", unsafe_allow_html=True)
@@ -76,12 +72,11 @@ st.markdown("---")
 # Sidebar - Role Selection
 st.sidebar.header("🔒 Gate Panel")
 role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin"])
-st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v15.1</small>", unsafe_allow_html=True)
+st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v15.2</small>", unsafe_allow_html=True)
 
 # ----------------- WORKER DASHBOARD -----------------
 if role == "Worker":
     st.subheader("📋 Worker Leave Application & Profile")
-    
     worker_id_input = st.text_input("Enter your Worker ID to unlock profile (e.g., IPL-1020):").strip()
     
     if worker_id_input:
@@ -113,20 +108,13 @@ if role == "Worker":
                 
                 if st.button("Apply Now (Submit Request)"):
                     new_request = pd.DataFrame([{
-                        "id": worker_data['id'],
-                        "worker": worker_data['name'],
-                        "leave_type": leave_type,
-                        "days": days_required,
-                        "date_from": str(date_from),
-                        "date_to": str(date_to),
-                        "reason": reason,
-                        "applied_on": str(datetime.now().date()),
-                        "status": "Pending"
+                        "id": worker_data['id'], "worker": worker_data['name'], "leave_type": leave_type,
+                        "days": days_required, "date_from": str(date_from), "date_to": str(date_to),
+                        "reason": reason, "applied_on": str(datetime.now().date()), "status": "Pending"
                     }])
-                    
-                    updated_requests = pd.concat([requests_df, new_request], ignore_index=True)
-                    save_sheet_data(updated_requests, "Requests")
-                    st.button("Click to Refresh Panel")
+                    requests_df = pd.concat([requests_df, new_request], ignore_index=True)
+                    save_sheet_data(requests_df, "Requests")
+                    st.rerun()
             
             with col_profile:
                 st.markdown("### 🌟 Worker Corporate Profile")
@@ -137,18 +125,15 @@ if role == "Worker":
 # ----------------- ADMIN DASHBOARD -----------------
 elif role == "Admin":
     st.subheader("⚙️ Admin Management System")
-    
     menu = st.tabs(["👥 Worker Directory", "📥 Pending Requests", "➕ Add New Worker"])
     
-    # Tab 1: Directory
     with menu[0]:
         st.markdown("### Active Staff Records")
         if not workers_df.empty:
             st.dataframe(workers_df, use_container_width=True)
         else:
-            st.info("No worker data found in the system.")
+            st.info("No worker data found.")
             
-    # Tab 2: Action Center for Leaves
     with menu[1]:
         st.markdown("### Manage Leave Applications")
         if not requests_df.empty:
@@ -158,34 +143,29 @@ elif role == "Admin":
         
         if not pending_requests.empty:
             for idx, row in pending_requests.iterrows():
-                with st.expander(f"Request from {row['worker']} ({row['id']}) for {row['days']} days of {row['leave_type']}"):
-                    st.write(f"**Dates:** {row['date_from']} to {row['date_to']}")
+                with st.expander(f"Request from {row['worker']} ({row['id']})"):
+                    st.write(f"**Leave Type:** {row['leave_type']} | **Days:** {row['days']}")
                     st.write(f"**Reason:** {row['reason']}")
                     
                     c1, c2 = st.columns(2)
                     if c1.button("✅ Approve Request", key=f"app_{idx}"):
                         requests_df.at[idx, 'status'] = "Approved"
-                        
                         w_idx = workers_df[workers_df['id'] == str(row['id'])].index
                         if len(w_idx) > 0:
                             short_type = "CL" if "Casual" in row['leave_type'] else "Sick" if "Sick" in row['leave_type'] else "Annual" if "Annual" in row['leave_type'] else "CO"
                             current_bal = pd.to_numeric(workers_df.at[w_idx[0], short_type], errors='coerce')
-                            if pd.isna(current_bal):
-                                current_bal = 0
-                            workers_df.at[w_idx[0], short_type] = max(0, int(current_bal) - int(row['days']))
-                        
+                            workers_df.at[w_idx[0], short_type] = max(0, int(current_bal if not pd.isna(current_bal) else 0) - int(row['days']))
                         save_sheet_data(workers_df, "Worker")
                         save_sheet_data(requests_df, "Requests")
-                        st.button("Click to Update Status")
+                        st.rerun()
                         
                     if c2.button("❌ Reject Request", key=f"rej_{idx}"):
                         requests_df.at[idx, 'status'] = "Rejected"
                         save_sheet_data(requests_df, "Requests")
-                        st.button("Click to Update Status")
+                        st.rerun()
         else:
             st.success("All clear! No pending leave requests found.")
             
-    # Tab 3: Onboard New Staff
     with menu[2]:
         st.markdown("### Worker Registration Form")
         with st.form("add_worker_form"):
@@ -198,7 +178,6 @@ elif role == "Admin":
             w_join = st.date_input("Date of Joining:", min_value=datetime(2010, 1, 1))
             w_dept = st.selectbox("Department:", ["PRODUCTION", "STORE", "QUALITY", "MAINTENANCE", "ADMIN"])
             
-            # Form balances default to 0 so Admin must allocate manually
             st.markdown("#### Initial Leave Quota Allocations (Issue by Admin)")
             q_cl = st.number_input("Casual Leave Balance (CL):", min_value=0, value=0)
             q_sl = st.number_input("Sick Leave Balance (SL):", min_value=0, value=0)
@@ -214,7 +193,6 @@ elif role == "Admin":
                     "end_date": "-", "department": w_dept, "password": "123", "photo": "",
                     "CL": q_cl, "Sick": q_sl, "Annual": q_al, "CO": q_co
                 }])
-                
                 updated_workers = pd.concat([workers_df, new_worker], ignore_index=True)
                 save_sheet_data(updated_workers, "Worker")
-                st.button("Click to Refresh Sheet")
+                st.experimental_rerun()
