@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 from datetime import datetime
 
 # Page Configuration with Professional Styling
@@ -8,56 +9,59 @@ st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layou
 # Custom Professional Theme Colors (Insta Plast Style)
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #F8FAFC;
-    }
-    h1 {
-        color: #1E3A8A !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-weight: 700;
-    }
-    .stButton>button {
-        background-color: #1E3A8A !important;
-        color: white !important;
-        border-radius: 6px !important;
-        border: none !important;
-        font-weight: bold !important;
-    }
-    .stButton>button:hover {
-        background-color: #1D4ED8 !important;
-        color: white !important;
-    }
+    .stApp { background-color: #F8FAFC; }
+    h1 { color: #1E3A8A !important; font-family: 'Segoe UI', sans-serif; font-weight: 700; }
+    .stButton>button { background-color: #1E3A8A !important; color: white !important; border-radius: 6px !important; font-weight: bold !important; }
+    .stButton>button:hover { background-color: #1D4ED8 !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# Google Sheet Direct CSV Export/Import Integration URL
+# Local Storage Paths (Excel Files)
+WORKER_FILE = "instaplast_workers.xlsx"
+REQUESTS_FILE = "instaplast_requests.xlsx"
+
+# Google Sheet Export/Import Link
 SHEET_ID = "1UjhsblmHa9UoUsbkx9-OYc98rXRcqToTJDdBAHZDciI"
-WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Worker"
-REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Requests"
+GSHEET_WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Worker"
+GSHEET_REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Requests"
 
-# Helper function to read data from Google Sheets safely
-def load_sheet_data(url, worksheet_name):
+# --- SYSTEM 1: LOAD DATA ---
+def load_data(file_path, gsheet_url, columns):
+    # Try loading from local excel first to avoid cloud read-only errors
+    if os.path.exists(file_path):
+        try:
+            return pd.read_excel(file_path)
+        except Exception:
+            pass
+            
+    # Try fetching from google sheets if local missing
     try:
-        return pd.read_csv(url)
+        df = pd.read_csv(gsheet_url)
+        df.to_excel(file_path, index=False) # Back up locally
+        return df
     except Exception:
-        if worksheet_name == "Worker":
-            return pd.DataFrame(columns=["name", "id", "cnic", "father_name", "mobile", "salary", "joining_date", "end_date", "department", "password", "photo", "CL", "Sick", "Annual", "CO"])
-        else:
-            return pd.DataFrame(columns=["id", "worker", "leave_type", "days", "date_from", "date_to", "reason", "applied_on", "status"])
+        return pd.DataFrame(columns=columns)
 
-# Helper function to update Google Sheets via Streamlit built-in connection fallback
-def save_sheet_data(df, worksheet_name):
+# Initialize columns
+worker_cols = ["name", "id", "cnic", "father_name", "mobile", "salary", "joining_date", "end_date", "department", "password", "photo", "CL", "Sick", "Annual", "CO"]
+req_cols = ["id", "worker", "leave_type", "days", "date_from", "date_to", "reason", "applied_on", "status"]
+
+workers_df = load_data(WORKER_FILE, GSHEET_WORKER_URL, worker_cols)
+requests_df = load_data(REQUESTS_FILE, GSHEET_REQUESTS_URL, req_cols)
+
+# --- SYSTEM 2: SAVE DATA ---
+def save_all_data(df, file_path, worksheet_name):
+    # 1. Pukka Save to Local PC Excel File
+    df.to_excel(file_path, index=False)
+    
+    # 2. Sync to Cloud Google Sheets via API connector
     try:
         from streamlit_gsheets import GSheetsConnection
         conn = st.connection("gsheets", type=GSheetsConnection)
         conn.update(worksheet=worksheet_name, data=df)
-        st.success("Data synchronized with Google Sheets successfully!")
+        st.success("✅ Data saved to local PC and synced to Google Cloud Sheets!")
     except Exception:
-        st.warning("Data connection active. Please ensure your secrets.toml contains valid Service Account JSON credentials.")
-
-# Load live data
-workers_df = load_sheet_data(WORKER_URL, "Worker")
-requests_df = load_sheet_data(REQUESTS_URL, "Requests")
+        st.info("💾 Data securely saved locally on your computer (instaplast_workers.xlsx). Cloud Sync pending connection keys.")
 
 # Clean IDs formatting
 for dataframe in [workers_df, requests_df]:
@@ -71,7 +75,7 @@ st.markdown("---")
 # Sidebar - Role Selection
 st.sidebar.header("🔒 Gate Panel")
 role = st.sidebar.selectbox("Select Access Role:", ["Worker", "Admin"])
-st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v15.3</small>", unsafe_allow_html=True)
+st.sidebar.markdown("<br><br><small style='color: #94A3B8;'>Powered by INSTAPLAST Engine v16.0</small>", unsafe_allow_html=True)
 
 # ----------------- WORKER DASHBOARD -----------------
 if role == "Worker":
@@ -87,10 +91,10 @@ if role == "Worker":
             
             # Display Balances
             col1, col2, col3, col4 = st.columns(4)
-            col1.metric("🟢 Casual Leave (CL)", f"{worker_data.get('CL', 0)} Days")
-            col2.metric("🔴 Sick Leave (SL)", f"{worker_data.get('Sick', 0)} Days")
-            col3.metric("🔵 Annual Leave (AL)", f"{worker_data.get('Annual', 0)} Days")
-            col4.metric("🟤 Compensation (CO)", f"{worker_data.get('CO', 0)} Days")
+            col1.metric("🟢 Casual Leave (CL)", f"{int(worker_data.get('CL', 0))} Days")
+            col2.metric("🔴 Sick Leave (SL)", f"{int(worker_data.get('Sick', 0))} Days")
+            col3.metric("🔵 Annual Leave (AL)", f"{int(worker_data.get('Annual', 0))} Days")
+            col4.metric("🟤 Compensation (CO)", f"{int(worker_data.get('CO', 0))} Days")
             
             col_form, col_profile = st.columns([2, 1])
             
@@ -112,7 +116,7 @@ if role == "Worker":
                         "reason": reason, "applied_on": str(datetime.now().date()), "status": "Pending"
                     }])
                     requests_df = pd.concat([requests_df, new_request], ignore_index=True)
-                    save_sheet_data(requests_df, "Requests")
+                    save_all_data(requests_df, REQUESTS_FILE, "Requests")
                     st.rerun()
             
             with col_profile:
@@ -131,7 +135,7 @@ elif role == "Admin":
         if not workers_df.empty:
             st.dataframe(workers_df, use_container_width=True)
         else:
-            st.info("No worker data found.")
+            st.info("No worker data found on this system.")
             
     with menu[1]:
         st.markdown("### Manage Leave Applications")
@@ -154,13 +158,13 @@ elif role == "Admin":
                             short_type = "CL" if "Casual" in row['leave_type'] else "Sick" if "Sick" in row['leave_type'] else "Annual" if "Annual" in row['leave_type'] else "CO"
                             current_bal = pd.to_numeric(workers_df.at[w_idx[0], short_type], errors='coerce')
                             workers_df.at[w_idx[0], short_type] = max(0, int(current_bal if not pd.isna(current_bal) else 0) - int(row['days']))
-                        save_sheet_data(workers_df, "Worker")
-                        save_sheet_data(requests_df, "Requests")
+                        save_all_data(workers_df, WORKER_FILE, "Worker")
+                        save_all_data(requests_df, REQUESTS_FILE, "Requests")
                         st.rerun()
                         
                     if c2.button("❌ Reject Request", key=f"rej_{idx}"):
                         requests_df.at[idx, 'status'] = "Rejected"
-                        save_sheet_data(requests_df, "Requests")
+                        save_all_data(requests_df, REQUESTS_FILE, "Requests")
                         st.rerun()
         else:
             st.success("All clear! No pending leave requests found.")
@@ -192,6 +196,6 @@ elif role == "Admin":
                     "end_date": "-", "department": w_dept, "password": "123", "photo": "",
                     "CL": q_cl, "Sick": q_sl, "Annual": q_al, "CO": q_co
                 }])
-                updated_workers = pd.concat([workers_df, new_worker], ignore_index=True)
-                save_sheet_data(updated_workers, "Worker")
+                workers_df = pd.concat([workers_df, new_worker], ignore_index=True)
+                save_all_data(workers_df, WORKER_FILE, "Worker")
                 st.rerun()
