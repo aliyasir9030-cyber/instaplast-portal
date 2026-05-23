@@ -12,12 +12,12 @@ st.set_page_config(page_title="INSTAPLAST Leave Portal", page_icon="🏭", layou
 ADMIN_PASSWORD = "admin123"  
 
 # --- 🌐 LIVE GOOGLE APPS SCRIPT API CONFIGURATION (UPDATED URL) ---
-API_URL = "https://script.google.com/macros/s/AKfycbxEzlemdjGit27B_GBAVQigMuh93DXHJyDRatz21bl0Wl__lJxFaaQiAX2hdkbf-sgq/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbwuE4FtMg-hpiQm_HHFetdXEsIXTXTKNuauHQi0RCFAXd9mqfN034KI50EYRxxXxBKl/exec"
 SHEET_ID = "1UjhsblmHa9UoUsbkx9-OYc98rXRcqToTJDdBAHZDciI"
 GSHEET_WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Worker"
 GSHEET_REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Requests"
 
-# --- 📥 CLOUD DATA LOADING LOGIC (With Dynamic Force Refresh Support) ---
+# --- 📥 CLOUD DATA LOADING LOGIC ---
 def load_cloud_database():
     if "workers_dict" not in st.session_state:
         try:
@@ -73,7 +73,7 @@ def load_cloud_database():
     if "admin_authenticated" not in st.session_state:
         st.session_state.admin_authenticated = False
 
-# --- 📤 CLOUD DATA SYNC LOGIC (POST TO APPS SCRIPT) ---
+# --- 📤 CLOUD DATA SYNC LOGIC ---
 def sync_data_to_sheet(payload_data, sheet_name):
     try:
         payload = {"sheet": sheet_name, "data": payload_data}
@@ -111,10 +111,10 @@ st.html("""
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 15px; text-align: center; }
     .calendar-header { font-weight: bold; background-color: #1e3a8a; padding: 8px; border-radius: 4px; color: #ffffff; }
     .day-cell { padding: 12px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1; position: relative; min-height: 55px; }
-    .day-p { background-color: #dcfce7; color: #15803d; border-color: #86efac; } /* Present */
-    .day-a { background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5; } /* Absent */
-    .day-l { background-color: #dbeafe; color: #1e40af; border-color: #93c5fd; } /* Leave */
-    .day-h { background-color: #fef3c7; color: #92400e; border-color: #fde047; } /* Hold */
+    .day-p { background-color: #dcfce7; color: #15803d; border-color: #86efac; }
+    .day-a { background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+    .day-l { background-color: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+    .day-h { background-color: #fef3c7; color: #92400e; border-color: #fde047; }
     .day-empty { background-color: #f1f5f9; color: #94a3b8; border: none; }
 </style>
 """)
@@ -332,7 +332,7 @@ if not is_admin_mode:
                     
             st.divider()
             
-            with St.container(border=True):
+            with st.container(border=True):
                 render_monthly_attendance_calendar(current_worker)
                 
             st.divider()
@@ -485,18 +485,17 @@ else:
                     if st.session_state.workers_dict:
                         delete_target = st.selectbox("Select Profile to Remove:", ["Select Worker"] + list(st.session_state.workers_dict.keys()), key="del_tgt")
                         if delete_target != "Select Worker":
-                            st.warning(f"⚠️ انتباہ: '{delete_target}' کو ڈیلیٹ کرنے سے ان کا سارا ریکارڈ فائل سے ہمیشہ کے لیے ختم ہو جائے گا۔")
+                            st.warning(f"⚠️ انتباہ: '{delete_target}' کو ڈیلیٹ کرنے سے ان کا سارا ریکارڈ کلاؤڈ اور ریکویسٹ شیٹ سے ہمیشہ کے لیے ختم ہو جائے گا۔")
                             
                             confirm_del = st.checkbox("جی ہاں، میں اس ورکر کو مستقل حذف کرنا چاہتا ہوں۔", key="conf_del")
                             if st.button("❌ Delete Worker Permanently", use_container_width=True, disabled=not confirm_del):
-                                # Sending explicit action trigger to clear the ENTIRE row line
                                 delete_payload = {"name": str(delete_target), "action": "DELETE"}
                                 if sync_data_to_sheet(delete_payload, "Worker"):
                                     if "workers_dict" in st.session_state:
                                         del st.session_state["workers_dict"]
                                     if "leave_requests" in st.session_state:
                                         del st.session_state["leave_requests"]
-                                    st.success(f"🗑️ '{delete_target}' کا پروفائل کلاؤڈ فائل سے نام سمیت مکمل حذف کر دیا گیا ہے۔")
+                                    st.success(f"🗑️ '{delete_target}' کا پروفائل اور اس کی تمام ریکویسٹس شیٹ سے مستقل حذف کر دی گئی ہیں۔")
                                     st.rerun()
                     else:
                         st.info("No active profiles loaded to delete.")
