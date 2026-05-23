@@ -18,7 +18,6 @@ GSHEET_REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/t
 
 # --- 📥 CLOUD DATA LOADING LOGIC ---
 def load_cloud_database():
-    # Initialize session states if not present
     if "workers_dict" not in st.session_state:
         st.session_state.workers_dict = {}
     if "leave_requests" not in st.session_state:
@@ -117,10 +116,18 @@ st.html("""
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
     }
+    .status-badge-pending {
+        background-color: #fef3c7; color: #d97706; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 13px;
+    }
+    .status-badge-approved {
+        background-color: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 13px;
+    }
+    .status-badge-rejected {
+        background-color: #fee2e2; color: #b91c1c; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 13px;
+    }
 </style>
 """)
 
-# Image handling functions
 def get_image_base64(uploaded_file):
     if uploaded_file is not None:
         bytes_data = uploaded_file.getvalue()
@@ -144,7 +151,6 @@ st.html("""
     </div>
 """)
 
-# Sidebar Navigation Control
 st.sidebar.title("🔒 Gate Panel")
 role_options = ["Worker", "Admin Portal"]
 access_role = st.sidebar.selectbox("Select Access Role:", role_options)
@@ -153,7 +159,6 @@ st.sidebar.caption("⚡ Powered by INSTAPLAST Engine v16.0")
 
 is_admin_mode = "Admin" in access_role
 
-# Helper function for details subtabs
 def render_profile_subdata(w_name, data, unique_key):
     st.write("---")
     st.markdown("### 📋 Detailed Profile Modules")
@@ -318,6 +323,31 @@ if not is_admin_mode:
                 st.write(f"🆔 **ID:** {w_data.get('id', 'N/A')}")
                 
                 render_profile_subdata(current_worker, w_data, "worker_view")
+            
+            # --- 🆕 WORKER LIVE LEAVE HISTORY SECTION ---
+            st.write("---")
+            st.html("<h3 class='section-title'>📝 Your Leave Applications History</h3>")
+            worker_history = [r for r in st.session_state.leave_requests if r["worker"].strip().lower() == current_worker.strip().lower()]
+            
+            if not worker_history:
+                st.info("ℹ️ You haven't submitted any leave requests yet.")
+            else:
+                for idx, req in enumerate(reversed(worker_history)):
+                    status = req.get("status", "Pending").strip()
+                    if status == "Approved":
+                        badge = f'<span class="status-badge-approved">✅ Approved</span>'
+                    elif status == "Rejected":
+                        badge = f'<span class="status-badge-rejected">❌ Rejected</span>'
+                    else:
+                        badge = f'<span class="status-badge-pending">⏳ Pending Admin Approval</span>'
+                        
+                    with st.container(border=True):
+                        col_h1, col_h2 = st.columns([3, 1])
+                        with col_h1:
+                            st.markdown(f"**Leave Category:** {req['leave_type']} ({req['days']} Days) | **Applied On:** {req['applied_on']}")
+                            st.markdown(f"📅 **Duration:** {req['date_from']} to {req['date_to']} | **Reason:** {req['reason']}")
+                        with col_h2:
+                            st.html(f"<div style='text-align: right; margin-top: 10px;'>{badge}</div>")
 
 # ==========================================
 # ADMIN PORTAL INTERFACE
@@ -450,6 +480,7 @@ else:
                             st.write(f"👤 **Worker Name:** {req['worker']} | 📋 **Leave Category:** {req['leave_type']} ({req['days']} Days)")
                             st.write(f"📅 **Duration:** {req['date_from']} to {req['date_to']} | 📝 **Reason:** {req['reason']}")
                             col_app, col_rej = st.columns(2)
+                            
                             with col_app:
                                 if st.button("✅ Approve Request", key=f"app_{req['id']}", use_container_width=True):
                                     # 1. Deduct leave quota from worker's profile
@@ -466,23 +497,19 @@ else:
                                         }
                                         sync_data_to_sheet(worker_payload, "Worker")
                                     
-                                    # 2. Hard-remove item from current session memory immediately 
-                                    st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["id"] != req["id"]]
-                                    
-                                    # 3. Mark approved and upload to Cloud database
+                                    # 2. Mark approved and upload to Cloud database immediately
                                     req["status"] = "Approved"
-                                    sync_data_to_sheet(req, "Requests")
-                                    st.rerun()
+                                    if sync_data_to_sheet(req, "Requests"):
+                                        st.success("Approved and Synced!")
+                                        st.rerun()
                                         
                             with col_rej:
                                 if st.button("❌ Reject Request", key=f"rej_{req['id']}", use_container_width=True):
-                                    # 1. Hard-remove item from current session memory immediately
-                                    st.session_state.leave_requests = [r for r in st.session_state.leave_requests if r["id"] != req["id"]]
-                                    
-                                    # 2. Mark rejected and upload to Cloud database
+                                    # 1. Mark rejected and upload to Cloud database immediately
                                     req["status"] = "Rejected"
-                                    sync_data_to_sheet(req, "Requests")
-                                    st.rerun()
+                                    if sync_data_to_sheet(req, "Requests"):
+                                        st.error("Rejected and Synced!")
+                                        st.rerun()
 
             # TAB 4: COMPLETE SHEETS RECORD
             with records_tab:
