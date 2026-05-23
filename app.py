@@ -18,15 +18,15 @@ GSHEET_WORKER_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?
 GSHEET_REQUESTS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Requests"
 
 # --- 📥 CLOUD DATA LOADING LOGIC ---
-def load_cloud_database():
-    if "workers_dict" not in st.session_state:
+def load_cloud_database(force_refresh=False):
+    if force_refresh or "workers_dict" not in st.session_state:
         try:
             workers_df = pd.read_csv(GSHEET_WORKER_URL)
             temp_workers = {}
             if not workers_df.empty:
                 for _, row in workers_df.iterrows():
                     w_name = str(row.get('name', '')).strip()
-                    if w_name and w_name != "nan":
+                    if w_name and w_name != "nan" and w_name != "":
                         temp_workers[w_name] = {
                             "id": str(row.get('id', '')).replace('.0', '').strip(),
                             "cnic": str(row.get('cnic', '')).replace('.0', '').strip(),
@@ -47,23 +47,26 @@ def load_cloud_database():
         except:
             st.session_state.workers_dict = {}
 
-    if "leave_requests" not in st.session_state:
+    if force_refresh or "leave_requests" not in st.session_state:
         try:
             requests_df = pd.read_csv(GSHEET_REQUESTS_URL)
             temp_reqs = []
             if not requests_df.empty:
                 for idx, row in requests_df.iterrows():
-                    temp_reqs.append({
-                        "id": str(row.get('id', idx+1)).replace('.0', '').strip(),
-                        "worker": str(row.get('worker', '')).strip(),
-                        "leave_type": str(row.get('leave_type', 'CL')).strip(),
-                        "days": int(row.get('days', 1)) if pd.notna(row.get('days')) else 1,
-                        "date_from": str(row.get('date_from', '')),
-                        "date_to": str(row.get('date_to', '')),
-                        "reason": str(row.get('reason', '-')),
-                        "applied_on": str(row.get('applied_on', '')),
-                        "status": str(row.get('status', 'Pending')).strip()
-                    })
+                    w_name = str(row.get('worker', '')).strip()
+                    # 🛑 کرپٹ یا خالی ڈیٹا کو کیو میں آنے سے روکنے کا فلٹر
+                    if w_name and w_name != "nan" and w_name != "":
+                        temp_reqs.append({
+                            "id": str(row.get('id', idx+1)).replace('.0', '').strip(),
+                            "worker": w_name,
+                            "leave_type": str(row.get('leave_type', 'CL')).strip(),
+                            "days": int(row.get('days', 1)) if pd.notna(row.get('days')) else 1,
+                            "date_from": str(row.get('date_from', '')),
+                            "date_to": str(row.get('date_to', '')),
+                            "reason": str(row.get('reason', '-')),
+                            "applied_on": str(row.get('applied_on', '')),
+                            "status": str(row.get('status', 'Pending')).strip()
+                        })
             st.session_state.leave_requests = temp_reqs
         except:
             st.session_state.leave_requests = []
@@ -360,7 +363,6 @@ if not is_admin_mode:
                 leave_days = st.number_input("Number of Days Required:", min_value=1, max_value=30, value=1)
                 reason = st.text_area("State Reason for Leave:")
                 
-                # 🛑 فکس: آٹو سبمٹ کو روکنے کے لیے کنڈیشنل لاجک (یہ بٹن کلک پر ہی ٹریگر ہوگا)
                 submit_clicked = st.button("Apply Now (Submit Request)", use_container_width=True)
                 
                 if submit_clicked:
@@ -374,10 +376,8 @@ if not is_admin_mode:
                             "applied_on": str(date.today()), "status": "Pending"
                         }
                         
-                        # شیٹ پر صرف تبھی جائے گا جب واقعی بٹن پریس ہوا ہو گا
                         if sync_data_to_sheet(new_req, "Requests"):
-                            if "leave_requests" in st.session_state:
-                                del st.session_state["leave_requests"]
+                            load_cloud_database(force_refresh=True)  # فوراً ڈیٹا ریفریش کریں
                             st.success("✅ Application submitted and synced to Cloud with Worker ID!")
                             st.rerun()
                     else:
@@ -479,8 +479,7 @@ else:
                                 "CL": int(cl_q), "Sick": int(sl_q), "Annual": int(al_q), "CO": int(co_q)
                             }
                             if sync_data_to_sheet(worker_payload, "Worker"):
-                                if "workers_dict" in st.session_state:
-                                    del st.session_state["workers_dict"]
+                                load_cloud_database(force_refresh=True)
                                 st.success(f"💾 Profile saved permanently!")
                                 st.rerun()
                                 
@@ -496,10 +495,7 @@ else:
                             if st.button("❌ Delete Worker Permanently", use_container_width=True, disabled=not confirm_del):
                                 delete_payload = {"name": str(delete_target), "action": "DELETE"}
                                 if sync_data_to_sheet(delete_payload, "Worker"):
-                                    if "workers_dict" in st.session_state:
-                                        del st.session_state["workers_dict"]
-                                    if "leave_requests" in st.session_state:
-                                        del st.session_state["leave_requests"]
+                                    load_cloud_database(force_refresh=True)
                                     st.success(f"🗑️ '{delete_target}' کا پروفائل اور اس کی تمام ریکویسٹس شیٹ سے مستقل حذف کر دی گئی ہیں۔")
                                     st.rerun()
                     else:
@@ -560,8 +556,7 @@ else:
                                 "CO": int(edit_co)
                             }
                             if sync_data_to_sheet(updated_payload, "Worker"):
-                                if "workers_dict" in st.session_state:
-                                    del st.session_state["workers_dict"]
+                                load_cloud_database(force_refresh=True)
                                 st.success(f"✅ {edit_worker_name} کا ریکارڈ کامیابی سے اپڈیٹ ہو گیا ہے!")
                                 st.rerun()
 
@@ -595,26 +590,16 @@ else:
                                         sync_data_to_sheet(worker_payload, "Worker")
                                     
                                     req["status"] = "Approved"
-                                    sync_data_to_sheet(req, "Requests")
-                                    
-                                    if "leave_requests" in st.session_state:
-                                        del st.session_state["leave_requests"]
-                                    if "workers_dict" in st.session_state:
-                                        del st.session_state["workers_dict"]
-                                        
-                                    st.rerun()
+                                    if sync_data_to_sheet(req, "Requests"):
+                                        load_cloud_database(force_refresh=True) # 🔑 فوراً کلاؤڈ ڈیٹا دوبارہ لوڈ کرے گا تاکہ لسٹ صاف ہو جائے
+                                        st.rerun()
                                         
                             with col_rej:
                                 if st.button("❌ Reject Request", key=f"rej_{req['id']}_{idx}", use_container_width=True):
                                     req["status"] = "Rejected"
-                                    sync_data_to_sheet(req, "Requests")
-                                    
-                                    if "leave_requests" in st.session_state:
-                                        del st.session_state["leave_requests"]
-                                    if "workers_dict" in st.session_state:
-                                        del st.session_state["workers_dict"]
-                                        
-                                    st.rerun()
+                                    if sync_data_to_sheet(req, "Requests"):
+                                        load_cloud_database(force_refresh=True) # 🔑 فوراً لسٹ صاف کرنے کے لیے فورس ریفریش
+                                        st.rerun()
 
             # TAB 4: COMPLETE SHEETS RECORD & ADMIN CALENDAR VIEW
             with records_tab:
